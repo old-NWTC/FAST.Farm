@@ -1,0 +1,26 @@
+Ambient Wind
+Processes ambient wind across wind farm from a precursor ABLSolver simulation
+
+ABLSolver precursor needs:
+•	Normally when ABLSolver is used for SOWFA, the discretization is 0.5 s (1 Hz max) and 10 m throughout.  SOWFA then has a 0.02-s time step and nested grids from 10 m down to 5 m down to 2.5 m.  While turbulence is not realized down to 0.02 s (25-Hz max), such a small time step is needed so that the blade tips don’t transverse multiple grid cells within a time step.
+•	FAST.Farm will need a high resolution domain (in both space and time) around rotor(s), accounting for yawing of rotor, deflection, and motion of the support structure (esp. floating).  The desired resolution is roughly 0.1-0.25 s (2-5 Hz max) and 5 m.  The time step of the high-resolution domain must be an integer divisor of the low-resolution domain’s time step.
+•	The rest of the FAST.Farm domain can be low resolution (in both space and time) throughout the wind farm, where wakes may reside, as these will spatially averaged across the wake planes.  The desired resolution is roughly 1-2.5 s (0.2-0.5 Hz max) and 20-50 m.  The time step of the low-resolution domain must match that of FAST.Farm driver.
+•	Spatial overlap between the low- and high-resolution domains is expected.
+•	Thus, I expect ABLSolver to generate 4 types of files:
+1)	XYZ coordinates of grid points for high-resolution domain around a turbine (1 per turbine)
+2)	XYZ coordinates of grid points for low-resolution domain throughout the farm
+3)	UVW components at grid points across the high-resolution domain around a rotor (1 per turbine per high-resolution time step)
+4)	UVW components at grid points across the low-resolution domain throughout the farm (1 per low-resolution time step)
+
+Inputs	Outputs
+States	Parameters
+None	•	UVW components of ambient wind across the low-resolution domain
+•	UVW components of ambient wind across each high-resolution  domain (one for each turbine) for each high-resolution time step within a low-resolution time step	None	•	Wind input filenames for the files storing the UVW components for the low- and high-resolution domains
+
+The rough flow flowchart of the AW_CO is:
+Read-in UVW file for low-resolution domain at the current time step
+FOR each turbine
+	FOR each high-resolution time step within a low-resolution time step
+		Read-in UVW file for high-resolution domain
+	END
+END
