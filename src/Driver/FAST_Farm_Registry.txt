@@ -1,0 +1,58 @@
+###################################################################################################################################
+# Registry for FAST_Farm in the FAST Modularization Framework
+# This Registry file is used to create MODULE FAST_Farm_Types, which contains all of the user-defined types needed in fast_farm.
+# It also contains copy, destroy, pack, and unpack routines associated with each defined data types.
+#
+# Entries are of the form
+# keyword <FAST_Farm/Farm> <TypeName>    <FieldType>    <FieldName>  <Dims>  <IO> <DNAME> <DESCRIP> <UNITS>
+#
+# Use ^ as a shortcut for the value from the previous line.
+# See NWTC Programmer's Handbook at https://nwtc.nrel.gov/FAST-Developers for further information on the format/contents of this file.
+###################################################################################################################################
+
+# ...... Include files (definitions from NWTC Library) ............................................................................
+include Registry_NWTC_Library.txt
+
+
+# ..... Initialization data .......................................................................................................
+# Define inputs that the initialization routine may need here:
+#   e.g., the name of the input file, the file root name, etc.
+typedef FAST_Farm/Farm InitInputType CHARACTER(1024) InputFile  - - -   "Name of the input file; remove if there is no file" -
+typedef   ^                ^             LOGICAL         Linearize  - .FALSE. -  "Flag that tells this module if the glue code wants to linearize." -
+
+# Define outputs from the initialization routine here:
+typedef   ^               InitOutputType CHARACTER(ChanLen) WriteOutputHdr  {:} - -   "Names of the output-to-file channels" -
+typedef   ^               InitOutputType CHARACTER(ChanLen) WriteOutputUnt  {:} - -   "Units of the output-to-file channels" -
+
+
+# ..... States ....................................................................................................................
+# Define continuous (differentiable) states here:
+typedef    ^              ContinuousStateType ReKi     DummyContState - - -  "Remove this variable if you have continuous states" -
+
+# Define discrete (nondifferentiable) states here:
+typedef   ^               DiscreteStateType   ReKi     DummyDiscState - - -  "Remove this variable if you have discrete states" -
+
+# Define constraint states here:
+typedef   ^               ConstraintStateType ReKi     DummyConstrState - - - "Remove this variable if you have constraint states" -
+
+# Define any other states, including integer or logical states here:
+typedef   ^               OtherStateType      IntKi    DummyOtherState - - - "Remove this variable if you have other states" -
+
+
+# ..... Misc/Optimization variables.................................................................................................
+# Define any data that are used only for efficiency purposes (these variables are not associated with time):
+#   e.g. indices for searching in an array, large arrays that are local variables in any routine called multiple times, etc.
+typedef    ^              MiscVarType          FAST_TurbineType     Turbine {:}- - -  "Data for each of the FAST instances" -
+
+
+# ..... Parameters ................................................................................................................
+# Define parameters here:
+# Time step for integration of continuous states (if a fixed-step integrator is used) and update of discrete states:
+typedef  ^               ParameterType         DbKi            DT              -    - - "Time step for cont. state integration & disc. state update" seconds
+typedef  ^               ParameterType         DbKi            TMax            -    - - "Total run time" seconds
+typedef  ^               ParameterType         IntKi           NumTurbines     -    - - "Number of turbines in the simulation" -
+typedef  ^               ParameterType         CHARACTER(1024) WindFileRoot    -    - - "Root name of wind data files from ABLSolver precursor" -
+typedef  ^               ParameterType         ReKi            WT_Position   {:}{:} - - "X-Y-Z position of each wind turbine; index 1 = XYZ; index 2 = turbine number" meters
+typedef  ^               ParameterType         CHARACTER(1024) WT_FASTInFile {:}    - - "Name of input file for each turbine" -
+typedef  ^               ParameterType         CHARACTER(1024) FTitle          -    - - "The description line from the primary FAST.Farm input file" -
+
