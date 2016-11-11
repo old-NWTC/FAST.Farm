@@ -1,0 +1,122 @@
+###################################################################################################################################
+# Registry for Wake Dynamics in the FAST Modularization Framework
+# This Registry file is used to create WakeDynamics_Types which contains data used in the WakeDynamics module.
+# It also contains copy, destroy, pack, and unpack routines associated with each defined data types.
+# See the NWTC Programmer's Handbook for further information on the format/contents of this file.
+#
+# Entries are of the form
+# <keyword>      <ModuleName/ModName>      <TypeName>      <FieldType>      <FieldName>      <Dims>      <IO>      <DNAME>      <DESCRIP>      <UNITS>
+#
+# Use ^ as a shortcut for the value in the same column from the previous line.
+###################################################################################################################################
+# File last committed $Date$
+# (File) Revision #: $Rev$
+# URL: $HeadURL$
+###################################################################################################################################
+# ...... Include files (definitions from NWTC Library) ............................................................................
+include      Registry_NWTC_Library.txt
+
+
+# ..... Initialization data .......................................................................................................
+# Define inputs that the initialization routine may need here:
+#typedef      WakeDynamics/WD      InitInputType      CHARACTER(1024)      InputFile      -      -      -      "Name of the input file"      -
+typedef      WakeDynamics/WD     InitInputType      CHARACTER(1024)      RootName       -      -      -      "RootName for writing output files"      -
+typedef      ^                   InitInputType      DbKi                 DT             -      -      -      "Time interval for wake dynamics calculations {or default}"      s
+typedef      ^                   InitInputType      IntKi                NumPlanes      -      -      -      "Number of wake planes"      -
+typedef      ^                   InitInputType      IntKi                NumRadii       -      -      -      "Number of radii in the radial finite-difference grid"      -
+typedef      ^                   InitInputType      ReKi                 dr             -      -      -      "Radial increment of radial finite-difference grid"      m
+typedef      ^                   InitInputType      ReKi                 f_c            -      -      -      " Cut-off frequency of the low-pass time-filter for the wake advection, deflection, and meandering model"      Hz
+typedef      ^                   InitInputType      ReKi                 C_NearWake     -      -      -      "Calibrated parameter for near-wake correction" -
+typedef      ^                   InitInputType      ReKi                 C_vAmb_DMin    -      -      -      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the minimum and exponential regions"      -
+typedef      ^                   InitInputType      ReKi                 C_vAmb_DMax    -      -      -      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the exponential and maximum regions"      -
+typedef      ^                   InitInputType      ReKi                 C_vAmb_FMin    -      -      -      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the functional value in the minimum region"      -
+typedef      ^                   InitInputType      ReKi                 C_vAmb_Exp     -      -      -      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the exponent in the exponential region"      -
+typedef      ^                   InitInputType      ReKi                 C_vShr_DMin    -      -      -      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the minimum and exponential regions"      -
+typedef      ^                   InitInputType      ReKi                 C_vShr_DMax    -      -      -      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the exponential and maximum regions"      -
+typedef      ^                   InitInputType      ReKi                 C_vShr_FMin    -      -      -      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the functional value in the minimum region"      -
+typedef      ^                   InitInputType      ReKi                 C_vShr_Exp     -      -      -      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the exponent in the exponential region"      -
+typedef      ^                   InitInputType      ReKi                 k_vAmb         -      -      -      "Calibrated parameter for the influence of ambient turbulence in the eddy viscosity"      -
+typedef      ^                   InitInputType      ReKi                 k_vShr         -      -      -      "Calibrated parameter for the influence of the shear layer in the eddy viscosity"      -
+typedef      ^                   InitInputType      IntKi                Mod_WakeDiam   -      -      -      "Wake diameter calculation model"      -
+typedef      ^                   InitInputType      ReKi                 C_WakeDiam     -      -      -      "Calibrated parameter for wake diameter calculation"      -
+
+# Define outputs from the initialization routine here:
+typedef      ^      InitOutputType            CHARACTER(ChanLen)      WriteOutputHdr      {:}      -      -      "Names of the output-to-file channels"      -
+typedef      ^      InitOutputType            CHARACTER(ChanLen)      WriteOutputUnt      {:}      -      -      "Units of the output-to-file channels"      -
+typedef      ^      InitOutputType            ProgDesc                Ver                  -       -      -      "This module's name, version, and date"      -
+
+
+
+# ..... Primary Input file data ...................................................................................................
+#
+# ..... States ....................................................................................................................
+# Define continuous (differentiable) states here:
+typedef      ^      ContinuousStateType       SiKi        Dummy              -      -      -      "ContinuousState dummy variable, remove if you have actual data"      -
+#
+# Define discrete (nondifferentiable) states here:                           
+typedef      ^      DiscreteStateType         ReKi        xhat_plane        {:}{:}  -      -      "Orientations of wake planes, normal to wake planes"      -
+typedef      ^      DiscreteStateType         ReKi        p_plane           {:}{:}  -      -      "Center positions of wake planes"      m
+typedef      ^      DiscreteStateType         ReKi        x_plane           {:}     -      -      "Downwind distance from rotor to each wake plane"      m
+typedef      ^      DiscreteStateType         ReKi        Vx_wake           {:}{:}  -      -      "Axial wake velocity deficit at wake planes, distributed radially"      m/s
+typedef      ^      DiscreteStateType         ReKi        Vr_wake           {:}{:}  -      -      "Radial wake velocity deficit at wake planes, distributed radially"      m/s
+typedef      ^      DiscreteStateType         ReKi        Vx_wind_disk_filt {:}     -      -      "Time-filtered rotor-disk-averaged ambient wind speed of wake planes, normal to planes"      m/s
+typedef      ^      DiscreteStateType         ReKi        TI_amb_filt       {:}     -      -      "Time-filtered ambient turbulence intensity of wind at wake planes"      -
+typedef      ^      DiscreteStateType         ReKi        D_rotor_filt      {:}     -      -      "Time-filtered rotor diameter associated with each wake plane"     m
+typedef      ^      DiscreteStateType         ReKi        Vx_rel_disk_filt   -      -      -      "Time-filtered rotor-disk-averaged relative wind speed (ambient + deficits + motion), normal to disk"      m/s
+typedef      ^      DiscreteStateType         ReKi        Ct_azavg_filt     {:}     -      -      "Time-filtered azimuthally averaged thrust force coefficient (normal to disk), distributed radially"      -
+#
+# Define constraint states here:
+typedef      ^      ConstraintStateType       SiKi        Dummy              -      -      -      "ConstraintState dummy variable, remove if you have actual data"      -
+#
+# Define "other" states here:
+typedef      ^      OtherStateType            SiKi        Dummy              -      -      -      "OtherState dummy variable, remove if you have actual data"      -
+#
+# Define misc/optimization variables (any data that are not considered actual states) here:
+typedef      ^      MiscVarType               LOGICAL     firstPass          -      -      -      "Flag indicating whether or not the states have been initialized with proper inputs"      -
+#
+# ..... Parameters ................................................................................................................
+# Define parameters here:
+# Time step for integration of continuous states (if a fixed-step integrator is used) and update of discrete states:
+typedef      ^      ParameterType      DbKi       DT             -      -      -      "Time interval for wake dynamics calculations {or default}"      s
+typedef      ^      ParameterType      IntKi      NumPlanes      -      -      -      "Number of wake planes"      -
+typedef      ^      ParameterType      IntKi      NumRadii       -      -      -      "Number of radii in the radial finite-difference grid"      -
+typedef      ^      ParameterType      ReKi       dr             -      -      -      "Radial increment of radial finite-difference grid"      m
+typedef      ^      ParameterType      ReKi       r             {:}     -      -      "Discretization of radial finite-difference grid"        m
+typedef      ^      ParameterType      ReKi       filtParam      -      -      -      "Low-pass time-filter parameter, with a value between 0 (minimum filtering) and 1 (maximum filtering) (exclusive)"      -
+typedef      ^      ParameterType      ReKi       C_NearWake     -      -      -      "Calibrated parameter for near-wake correction" -
+typedef      ^      ParameterType      ReKi       C_vAmb_DMin    -      -      -      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the minimum and exponential regions"      -
+typedef      ^      ParameterType      ReKi       C_vAmb_DMax    -      -      -      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the exponential and maximum regions"      -
+typedef      ^      ParameterType      ReKi       C_vAmb_FMin    -      -      -      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the functional value in the minimum region"      -
+typedef      ^      ParameterType      ReKi       C_vAmb_Exp     -      -      -      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the exponent in the exponential region"      -
+typedef      ^      ParameterType      ReKi       C_vShr_DMin    -      -      -      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the minimum and exponential regions"      -
+typedef      ^      ParameterType      ReKi       C_vShr_DMax    -      -      -      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the exponential and maximum regions"      -
+typedef      ^      ParameterType      ReKi       C_vShr_FMin    -      -      -      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the functional value in the minimum region"      -
+typedef      ^      ParameterType      ReKi       C_vShr_Exp     -      -      -      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the exponent in the exponential region"      -
+typedef      ^      ParameterType      ReKi       k_vAmb         -      -      -      "Calibrated parameter for the influence of ambient turbulence in the eddy viscosity"      -
+typedef      ^      ParameterType      ReKi       k_vShr         -      -      -      "Calibrated parameter for the influence of the shear layer in the eddy viscosity"      -
+typedef      ^      ParameterType      IntKi      Mod_WakeDiam   -      -      -      "Wake diameter calculation model"      -
+typedef      ^      ParameterType      ReKi       C_WakeDiam     -      -      -      "Calibrated parameter for wake diameter calculation"      -
+#
+# parameters for output
+typedef      ^      ParameterType      IntKi            NumOuts        -      -      -      "Number of parameters in the output list (number of outputs requested)"      -
+typedef      ^      ParameterType      CHARACTER(1024)  RootName       -      -      -      "RootName for writing output files"      -
+typedef      ^      ParameterType      OutParmType      OutParam      {:}     -      -      "Names and units (and other characteristics) of all requested output parameters"      -
+#
+# ..... Inputs ....................................................................................................................
+# Define inputs that are contained on the mesh here:
+typedef      ^      InputType          ReKi       xhat_disk            {3}     -      -      "Orientation of rotor centerline, normal to disk"      -
+typedef      ^      InputType          ReKi       p_hub                {3}     -      -      "Center position of hub"      m
+typedef      ^      InputType          ReKi       V_plane              {:}{:}  -      -      "Advection, deflection, and meandering velocity of wake planes"      m/s
+typedef      ^      InputType          ReKi       Vx_wind_disk          -      -      -      "Rotor-disk-averaged ambient wind speed, normal to planes"      m/s
+typedef      ^      InputType          ReKi       TI_amb                -      -      -      "Ambient turbulence intensity of wind at rotor disk"      -
+typedef      ^      InputType          ReKi       D_rotor               -      -      -      "Rotor diameter"      m
+typedef      ^      InputType          ReKi       Vx_rel_disk           -      -      -      "Rotor-disk-averaged relative wind speed (ambient + deficits + motion), normal to disk"      m/s
+typedef      ^      InputType          ReKi       Ct_azavg             {:}     -      -      "Azimuthally averaged thrust force coefficient (normal to disk), distributed radially"      -
+#
+# ..... Outputs ...................................................................................................................
+# Define outputs that are contained on the mesh here:
+typedef      ^      OutputType         ReKi       xhat_plane           {:}{:}  -      -      "Orientations of wake planes, normal to wake planes"      -
+typedef      ^      OutputType         ReKi       p_plane              {:}{:}  -      -      "Center positions of wake planes"      m
+typedef      ^      OutputType         ReKi       Vx_wake              {:}{:}  -      -      "Axial wake velocity deficit at wake planes, distributed radially"      m/s
+typedef      ^      OutputType         ReKi       Vr_wake              {:}{:}  -      -      "Radial wake velocity deficit at wake planes, distributed radially"      m/s
+typedef      ^      OutputType         ReKi       D_wake               {:}     -      -      "Wake diameters at wake planes"     m
