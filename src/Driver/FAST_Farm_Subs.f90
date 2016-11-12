@@ -31,13 +31,124 @@ MODULE FAST_Farm_Subs
    IMPLICIT NONE
 
 
-   TYPE(ProgDesc), PARAMETER  :: Farm_Ver = ProgDesc( 'FAST.Farm', 'v1.00.00', '17-Oct-2016' ) !< module date/version information
-
-   CALL NWTC_Init() ! open console for writing
+   TYPE(ProgDesc), PARAMETER  :: Farm_Ver = ProgDesc( 'FAST.Farm', 'v1.00.00', '17-Oct-2016' ) !< module date/version information   
    
+   CONTAINS
+
+!----------------------------------------------------------------------------------------------------------------------------------
+!> Routine to call Init routine for each module. This routine sets all of the init input data for each module.
+SUBROUTINE Farm_Initialize( p, ErrStat, ErrMsg, InFile )
+
+   TYPE(Farm_ParameterType), INTENT(INOUT) :: p                   !< FAST.Farm driver parameters   
+      
+   INTEGER(IntKi),           INTENT(  OUT) :: ErrStat             !< Error status of the operation
+   CHARACTER(*),             INTENT(  OUT) :: ErrMsg              !< Error message if ErrStat /= ErrID_None
+   CHARACTER(*), OPTIONAL,   INTENT(IN   ) :: InFile              !< A CHARACTER string containing the name of the primary FAST input file (if not present, we'll get it from the command line)
+   
+   
+   ! local variables      
+   INTEGER(IntKi)                          :: ErrStat2   
+   CHARACTER(ErrMsgLen)                    :: ErrMsg2
+   CHARACTER(1024)                         :: InputFile            ! A CHARACTER string containing the name of the primary FAST input file
+                                           
+   CHARACTER(*), PARAMETER                 :: RoutineName = 'Farm_Initialize'       
+   
+   
+   !..........
+   ErrStat = ErrID_None
+   ErrMsg  = ""         
+   AbortErrLev            = ErrID_Fatal                                 ! Until we read otherwise from the FAST input file, we abort only on FATAL errors
+   !m_FAST%t_global        = t_initial - 20.                             ! initialize this to a number < t_initial for error message in ProgAbort  
+   
+      ! ... Initialize NWTC Library (open console, set pi constants) ...
+   CALL NWTC_Init( ProgNameIN=Farm_ver%Name, EchoLibVer=.FALSE. )       ! sets the pi constants, open console for output, etc...
+      
+      ! Display the copyright notice
+   CALL DispCopyrightLicense( Farm_ver )
+
+      ! Tell our users what they're running
+   CALL WrScr( ' Running '//TRIM(GetNVD(Farm_Ver))//NewLine//' linked with '//TRIM( GetNVD( NWTC_Ver ))//NewLine )
+   
+   
+      ! ... Open and read input files, initialize global parameters. ...
+   IF ( PRESENT(InFile) ) THEN
+      InputFile = InFile
+   ELSE ! get it from the command line
+      InputFile = ""  ! initialize to empty string to make sure it's input from the command line
+      CALL CheckArgs( InputFile, ErrStat2 )  ! if ErrStat2 /= ErrID_None, we'll ignore and deal with the problem when we try to read the input file
+      
+      IF (LEN_TRIM(InputFile) == 0) THEN ! no input file was specified
+         CALL SetErrStat( ErrID_Fatal, 'The required input file was not specified on the command line.', ErrStat, ErrMsg, RoutineName )
+
+         CALL NWTC_DisplaySyntax( InputFile, 'FAST.Farm.exe' )
+         
+         RETURN
+      END IF            
+                  
+   END IF
+      
+
+      ! Determine the root name of the primary file (will be used for output files)
+   CALL GetRoot( InputFile, p%OutFileRoot )      
+      
+      
+      
+   !...............................................................................................................................  
+
+   call Farm_ReadPrimaryFile( InputFile, p, ErrStat2, ErrMsg2 )
+      CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+      IF (ErrStat >= AbortErrLev) THEN
+         CALL Cleanup()
+         RETURN
+      END IF
+
+   !! ........................
+   !! Set up output for glue code (must be done after all modules are initialized so we have their WriteOutput information)
+   !! ........................
+   !
+   !CALL FAST_InitOutput( p_FAST, y_FAST, InitOutData_ED, InitOutData_BD, InitOutData_SrvD, InitOutData_AD14, InitOutData_AD, &
+   !                      InitOutData_IfW, InitOutData_OpFM, InitOutData_HD, InitOutData_SD, InitOutData_ExtPtfm, InitOutData_MAP, &
+   !                      InitOutData_FEAM, InitOutData_MD, InitOutData_Orca, InitOutData_IceF, InitOutData_IceD, ErrStat2, ErrMsg2 )
+   !   CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+   !
+   !
+   !
+   !   
+   !
+   !! -------------------------------------------------------------------------
+   !! Write initialization data to FAST summary file:
+   !! -------------------------------------------------------------------------
+   !
+   !CALL FAST_WrSum( p_FAST, y_FAST, MeshMapData, ErrStat2, ErrMsg2 )
+   !   CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+   !
+   !
+   !! -------------------------------------------------------------------------
+   !! other misc variables initialized here:
+   !! -------------------------------------------------------------------------
+   !   
+   !m_FAST%t_global        = t_initial
+   !m_FAST%NextLinTimeIndx = 1 
+         
+         
+   
+   !...............................................................................................................................
+   ! Destroy initializion data
+   !...............................................................................................................................      
+   CALL Cleanup()
    
 CONTAINS
+   SUBROUTINE Cleanup()
+   !...............................................................................................................................
+   ! Destroy initializion data
+   !...............................................................................................................................
+   
+         
+   END SUBROUTINE Cleanup
 
+END SUBROUTINE Farm_Initialize
+!----------------------------------------------------------------------------------------------------------------------------------
+   
 !----------------------------------------------------------------------------------------------------------------------------------
 !> This routine reads in the primary FAST.Farm input file, does some validation, and places the values it reads in the
 !!   parameter structure (p). It prints to an echo file if requested.
@@ -141,7 +252,7 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, ErrStat, ErrMsg )
 
       I = I + 1         ! make sure we do this only once (increment counter that says how many times we've read this file)
 
-      CALL OpenEcho ( UnEc, TRIM(p%OutFileRoot)//'.ech', ErrStat2, ErrMsg2, FAST_Ver )
+      CALL OpenEcho ( UnEc, TRIM(p%OutFileRoot)//'.ech', ErrStat2, ErrMsg2, Farm_Ver )
          CALL SetErrStat( ErrStat2, ErrMsg2,ErrStat,ErrMsg,RoutineName)
          if ( ErrStat >= AbortErrLev ) then
             call cleanup()
@@ -238,8 +349,8 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, ErrStat, ErrMsg )
    CALL ReadCom( UnIn, InputFile, 'Section Header: WT column units', ErrStat2, ErrMsg2, UnEc )
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       
-   call AllocAry( p%WT_Position, 3, p%NumTurbines, ErrStat2, ErrMsg2);  CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call AllocAry( p%WT_FASTInFile,  p%NumTurbines, ErrStat2, ErrMsg2);  CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   call AllocAry( p%WT_Position, 3, p%NumTurbines, 'WT_Position',   ErrStat2, ErrMsg2);  CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   call AllocAry( p%WT_FASTInFile,  p%NumTurbines, 'WT_FASTInFile', ErrStat2, ErrMsg2);  CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       if ( ErrStat >= AbortErrLev ) then
          call cleanup()
          RETURN        
@@ -257,7 +368,7 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, ErrStat, ErrMsg )
          RETURN        
       end if      
       IF ( UnEc > 0 ) THEN      
-         WRITE( UnEc, "(3(ES11.4e2,2X),'""',A,'""',150,' - WT(',I5,'))" ) p%WT_Position(:,i), TRIM( p%WT_FASTInFile(i) ), I
+         WRITE( UnEc, "(3(ES11.4e2,2X),'""',A,'""',T50,' - WT(',I5,')')" ) p%WT_Position(:,i), TRIM( p%WT_FASTInFile(i) ), I
       END IF
       IF ( PathIsRelative( p%WT_FASTInFile(i) ) ) p%WT_FASTInFile(i) = TRIM(PriPath)//TRIM(p%WT_FASTInFile(i))
       
@@ -273,29 +384,29 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, ErrStat, ErrMsg )
       end if      
       
       
-      ! dr - Radial increment of radial finite-difference grid (m) [>0.0]:
-   CALL ReadVar( UnIn, InputFile, p%dr, "dr", "Radial increment of radial finite-difference grid (m) [>0.0]", ErrStat2, ErrMsg2, UnEc)
-      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-      if ( ErrStat >= AbortErrLev ) then
-         call cleanup()
-         RETURN        
-      end if
-
-      ! NumRadii - Number of radii in the radial finite-difference grid (-) [>=2]:
-   CALL ReadVar( UnIn, InputFile, p%NumRadii, "NumRadii", "Number of radii in the radial finite-difference grid (-) [>=2]", ErrStat2, ErrMsg2, UnEc)
-      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-      if ( ErrStat >= AbortErrLev ) then
-         call cleanup()
-         RETURN        
-      end if
-   
-      ! NumPlanes - Number of wake planes (-) [>=2]:
-   CALL ReadVar( UnIn, InputFile, p%NumPlanes, "NumPlanes", "Number of wake planes (-) [>=2]", ErrStat2, ErrMsg2, UnEc)
-      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-      if ( ErrStat >= AbortErrLev ) then
-         call cleanup()
-         RETURN        
-      end if
+   !   ! dr - Radial increment of radial finite-difference grid (m) [>0.0]:
+   !CALL ReadVar( UnIn, InputFile, p%dr, "dr", "Radial increment of radial finite-difference grid (m) [>0.0]", ErrStat2, ErrMsg2, UnEc)
+   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   !   if ( ErrStat >= AbortErrLev ) then
+   !      call cleanup()
+   !      RETURN        
+   !   end if
+   !
+   !   ! NumRadii - Number of radii in the radial finite-difference grid (-) [>=2]:
+   !CALL ReadVar( UnIn, InputFile, p%NumRadii, "NumRadii", "Number of radii in the radial finite-difference grid (-) [>=2]", ErrStat2, ErrMsg2, UnEc)
+   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   !   if ( ErrStat >= AbortErrLev ) then
+   !      call cleanup()
+   !      RETURN        
+   !   end if
+   !
+   !   ! NumPlanes - Number of wake planes (-) [>=2]:
+   !CALL ReadVar( UnIn, InputFile, p%NumPlanes, "NumPlanes", "Number of wake planes (-) [>=2]", ErrStat2, ErrMsg2, UnEc)
+   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   !   if ( ErrStat >= AbortErrLev ) then
+   !      call cleanup()
+   !      RETURN        
+   !   end if
       
       
       
@@ -338,61 +449,61 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, ErrStat, ErrMsg )
       END IF
       
 
-      ! TStart - Time to begin tabular output (s) [>=0.0]:
-   CALL ReadVar( UnIn, InputFile, p%TStart, "TStart", "Time to begin tabular output (s) [>=0.0]", ErrStat2, ErrMsg2, UnEc)
-      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-      if ( ErrStat >= AbortErrLev ) then
-         call cleanup()
-         RETURN        
-      end if
-
-      ! OutFileFmt - Format for tabular (time-marching) output file (switch) {1: text file [<RootName>.out], 2: binary file [<RootName>.outb], 3: both}:
-   CALL ReadVar( UnIn, InputFile, OutFileFmt, "OutFileFmt", "Format for tabular (time-marching) output file (switch) {1: text file [<RootName>.out], 2: binary file [<RootName>.outb], 3: both}", ErrStat2, ErrMsg2, UnEc)
-      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-      if ( ErrStat >= AbortErrLev ) then
-         call cleanup()
-         RETURN        
-      end if
-
-      SELECT CASE (OutFileFmt)
-         CASE (1_IntKi)
-            p%WrBinOutFile = .FALSE.
-            p%WrTxtOutFile = .TRUE.
-         CASE (2_IntKi)
-            p%WrBinOutFile = .TRUE.
-            p%WrTxtOutFile = .FALSE.
-         CASE (3_IntKi)
-            p%WrBinOutFile = .TRUE.
-            p%WrTxtOutFile = .TRUE.
-         CASE DEFAULT
-            CALL SetErrStat( ErrID_Fatal, "FAST's OutFileFmt must be 1, 2, or 3.",ErrStat,ErrMsg,RoutineName)
-            if ( ErrStat >= AbortErrLev ) then
-               call cleanup()
-               RETURN        
-            end if
-      END SELECT
-
-      ! TabDelim - Use tab delimiters in text tabular output file? (flag) {uses spaces if False}:
-   CALL ReadVar( UnIn, InputFile, TabDelim, "TabDelim", "Use tab delimiters in text tabular output file? (flag) {uses spaces if False}", ErrStat2, ErrMsg2, UnEc)
-      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-      if ( ErrStat >= AbortErrLev ) then
-         call cleanup()
-         RETURN        
-      end if
-
-      IF ( TabDelim ) THEN
-         p%Delim = TAB
-      ELSE
-         p%Delim = ' '
-      END IF
-
-      ! OutFmt - Format used for text tabular output, excluding the time channel. Resulting field should be 10 characters. (quoted string):
-   CALL ReadVar( UnIn, InputFile, p%OutFmt, "OutFmt", "Format used for text tabular output, excluding the time channel. Resulting field should be 10 characters. (quoted string)", ErrStat2, ErrMsg2, UnEc)
-      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-      if ( ErrStat >= AbortErrLev ) then
-         call cleanup()
-         RETURN        
-      end if
+   !   ! TStart - Time to begin tabular output (s) [>=0.0]:
+   !CALL ReadVar( UnIn, InputFile, p%TStart, "TStart", "Time to begin tabular output (s) [>=0.0]", ErrStat2, ErrMsg2, UnEc)
+   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   !   if ( ErrStat >= AbortErrLev ) then
+   !      call cleanup()
+   !      RETURN        
+   !   end if
+   !
+   !   ! OutFileFmt - Format for tabular (time-marching) output file (switch) {1: text file [<RootName>.out], 2: binary file [<RootName>.outb], 3: both}:
+   !CALL ReadVar( UnIn, InputFile, OutFileFmt, "OutFileFmt", "Format for tabular (time-marching) output file (switch) {1: text file [<RootName>.out], 2: binary file [<RootName>.outb], 3: both}", ErrStat2, ErrMsg2, UnEc)
+   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   !   if ( ErrStat >= AbortErrLev ) then
+   !      call cleanup()
+   !      RETURN        
+   !   end if
+   !
+   !   SELECT CASE (OutFileFmt)
+   !      CASE (1_IntKi)
+   !         p%WrBinOutFile = .FALSE.
+   !         p%WrTxtOutFile = .TRUE.
+   !      CASE (2_IntKi)
+   !         p%WrBinOutFile = .TRUE.
+   !         p%WrTxtOutFile = .FALSE.
+   !      CASE (3_IntKi)
+   !         p%WrBinOutFile = .TRUE.
+   !         p%WrTxtOutFile = .TRUE.
+   !      CASE DEFAULT
+   !         CALL SetErrStat( ErrID_Fatal, "FAST's OutFileFmt must be 1, 2, or 3.",ErrStat,ErrMsg,RoutineName)
+   !         if ( ErrStat >= AbortErrLev ) then
+   !            call cleanup()
+   !            RETURN        
+   !         end if
+   !   END SELECT
+   !
+   !   ! TabDelim - Use tab delimiters in text tabular output file? (flag) {uses spaces if False}:
+   !CALL ReadVar( UnIn, InputFile, TabDelim, "TabDelim", "Use tab delimiters in text tabular output file? (flag) {uses spaces if False}", ErrStat2, ErrMsg2, UnEc)
+   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   !   if ( ErrStat >= AbortErrLev ) then
+   !      call cleanup()
+   !      RETURN        
+   !   end if
+   !
+   !   IF ( TabDelim ) THEN
+   !      p%Delim = TAB
+   !   ELSE
+   !      p%Delim = ' '
+   !   END IF
+   !
+   !   ! OutFmt - Format used for text tabular output, excluding the time channel. Resulting field should be 10 characters. (quoted string):
+   !CALL ReadVar( UnIn, InputFile, p%OutFmt, "OutFmt", "Format used for text tabular output, excluding the time channel. Resulting field should be 10 characters. (quoted string)", ErrStat2, ErrMsg2, UnEc)
+   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   !   if ( ErrStat >= AbortErrLev ) then
+   !      call cleanup()
+   !      RETURN        
+   !   end if
 
       
  !!!!!!!                  OutList            The next line(s) contains a list of output parameters.  See OutListParameters.xlsx for a listing of available output channels (quoted string)      

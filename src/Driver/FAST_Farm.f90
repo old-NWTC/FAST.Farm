@@ -34,7 +34,7 @@ REAL(DbKi),             PARAMETER     :: t_initial = 0.0_DbKi                   
 INTEGER(IntKi)                        :: NumTurbines 
    
    ! Other/Misc variables
-TYPE(FAST_TurbineType), ALLOCATABLE   :: Turbine(:)                              ! Data for each turbine instance <<< in the FAST_Farm_Types file? Are we going to make this global data and pass the index to FAST?
+!TYPE(FAST_TurbineType), ALLOCATABLE   :: Turbine(:)                              ! Data for each turbine instance <<< in the FAST_Farm_Types file? Are we going to make this global data and pass the index to FAST?
 
 INTEGER(IntKi)                        :: i_turb                                  ! current turbine number
 INTEGER(IntKi)                        :: n_t_global                              ! simulation time step, loop counter for global simulation
@@ -46,7 +46,7 @@ CHARACTER(1024)                       :: CheckpointRoot                         
 CHARACTER(20)                         :: FlagArg                                 ! flag argument from command line
 INTEGER(IntKi)                        :: Restart_step                            ! step to start on (for restart) 
 
-   
+ type(farm_parametertype)             :: p  
    
 !Note: Multiple entries in the same row implies that the operations can be done in parallel
 !FAST.Farm Driver
@@ -86,18 +86,23 @@ INTEGER(IntKi)                        :: Restart_step                           
 !        Close Output File   
    
 
+   CALL NWTC_Init() ! open console for writing
    
    
    ProgName = 'FAST.Farm'
    CheckpointRoot = ""
    CALL CheckArgs( CheckpointRoot, ErrStat, Flag=FlagArg )  ! if ErrStat /= ErrID_None, we'll ignore and deal with the problem when we try to read the input file
       
-   !IF ( TRIM(FlagArg) == 'RESTART' ) THEN ! Restart from checkpoint file
+   IF ( TRIM(FlagArg) == 'RESTART' ) THEN ! Restart from checkpoint file
    !   CALL FAST_RestoreFromCheckpoint_Tary(t_initial, Restart_step, Turbine, CheckpointRoot, ErrStat, ErrMsg  )
    !      CALL CheckError( ErrStat, ErrMsg, 'during restore from checkpoint'  )           
    !   
-   !ELSE
-   !   Restart_step = 0
+   ELSE
+      Restart_step = 0
+      
+      call Farm_Initialize( p, ErrStat, ErrMsg )
+      
+      
    !   
    !   DO i_turb = 1,NumTurbines
    !      !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -119,7 +124,7 @@ INTEGER(IntKi)                        :: Restart_step                           
    !   
    !               
    !   END DO
-   !END IF
+   END IF
    !
    !
    !   

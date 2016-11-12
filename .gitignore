@@ -57,3 +57,6 @@ BuildLog.htm
 /SourceFiles.txt
 /ArcWin.txt
 /Archive.bat
+Registry_tmp.*
+Debug
+Release
