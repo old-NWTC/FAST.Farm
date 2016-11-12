@@ -44,6 +44,14 @@ IMPLICIT NONE
     CHARACTER(1024)  :: FTitle      !< The description line from the primary FAST.Farm input file [-]
     CHARACTER(1024)  :: OutFileRoot      !< The root name derived from the primary FAST.Farm input file [-]
     INTEGER(IntKi)  :: n_ChkptTime      !< Number of time steps between writing checkpoint files [-]
+    REAL(DbKi)  :: TStart      !< Time to begin tabular output [s]
+    LOGICAL  :: WrBinOutFile      !< Write a binary output file? (.outb) [-]
+    LOGICAL  :: WrTxtOutFile      !< Write a text (formatted) output file? (.out) [-]
+    CHARACTER(1)  :: Delim      !< Delimiter between columns of text output file (.out): space or tab [-]
+    CHARACTER(20)  :: OutFmt      !< Format used for text tabular output (except time); resulting field should be 10 characters [-]
+    CHARACTER(20)  :: OutFmt_t      !< Format used for time channel in text tabular output; resulting field should be 10 characters [-]
+    INTEGER(IntKi)  :: FmtWidth      !< width of the time OutFmt specifier [-]
+    INTEGER(IntKi)  :: TChanLen      !< width of the time channel [-]
   END TYPE Farm_ParameterType
 ! =======================
 CONTAINS
@@ -96,6 +104,14 @@ ENDIF
     DstParamData%FTitle = SrcParamData%FTitle
     DstParamData%OutFileRoot = SrcParamData%OutFileRoot
     DstParamData%n_ChkptTime = SrcParamData%n_ChkptTime
+    DstParamData%TStart = SrcParamData%TStart
+    DstParamData%WrBinOutFile = SrcParamData%WrBinOutFile
+    DstParamData%WrTxtOutFile = SrcParamData%WrTxtOutFile
+    DstParamData%Delim = SrcParamData%Delim
+    DstParamData%OutFmt = SrcParamData%OutFmt
+    DstParamData%OutFmt_t = SrcParamData%OutFmt_t
+    DstParamData%FmtWidth = SrcParamData%FmtWidth
+    DstParamData%TChanLen = SrcParamData%TChanLen
  END SUBROUTINE Farm_CopyParam
 
  SUBROUTINE Farm_DestroyParam( ParamData, ErrStat, ErrMsg )
@@ -167,6 +183,14 @@ ENDIF
       Int_BufSz  = Int_BufSz  + 1*LEN(InData%FTitle)  ! FTitle
       Int_BufSz  = Int_BufSz  + 1*LEN(InData%OutFileRoot)  ! OutFileRoot
       Int_BufSz  = Int_BufSz  + 1  ! n_ChkptTime
+      Db_BufSz   = Db_BufSz   + 1  ! TStart
+      Int_BufSz  = Int_BufSz  + 1  ! WrBinOutFile
+      Int_BufSz  = Int_BufSz  + 1  ! WrTxtOutFile
+      Int_BufSz  = Int_BufSz  + 1*LEN(InData%Delim)  ! Delim
+      Int_BufSz  = Int_BufSz  + 1*LEN(InData%OutFmt)  ! OutFmt
+      Int_BufSz  = Int_BufSz  + 1*LEN(InData%OutFmt_t)  ! OutFmt_t
+      Int_BufSz  = Int_BufSz  + 1  ! FmtWidth
+      Int_BufSz  = Int_BufSz  + 1  ! TChanLen
   IF ( Re_BufSz  .GT. 0 ) THEN 
      ALLOCATE( ReKiBuf(  Re_BufSz  ), STAT=ErrStat2 )
      IF (ErrStat2 /= 0) THEN 
@@ -246,6 +270,28 @@ ENDIF
           Int_Xferred = Int_Xferred   + 1
         END DO ! I
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%n_ChkptTime
+      Int_Xferred   = Int_Xferred   + 1
+      DbKiBuf ( Db_Xferred:Db_Xferred+(1)-1 ) = InData%TStart
+      Db_Xferred   = Db_Xferred   + 1
+      IntKiBuf ( Int_Xferred:Int_Xferred+1-1 ) = TRANSFER( InData%WrBinOutFile , IntKiBuf(1), 1)
+      Int_Xferred   = Int_Xferred   + 1
+      IntKiBuf ( Int_Xferred:Int_Xferred+1-1 ) = TRANSFER( InData%WrTxtOutFile , IntKiBuf(1), 1)
+      Int_Xferred   = Int_Xferred   + 1
+        DO I = 1, LEN(InData%Delim)
+          IntKiBuf(Int_Xferred) = ICHAR(InData%Delim(I:I), IntKi)
+          Int_Xferred = Int_Xferred   + 1
+        END DO ! I
+        DO I = 1, LEN(InData%OutFmt)
+          IntKiBuf(Int_Xferred) = ICHAR(InData%OutFmt(I:I), IntKi)
+          Int_Xferred = Int_Xferred   + 1
+        END DO ! I
+        DO I = 1, LEN(InData%OutFmt_t)
+          IntKiBuf(Int_Xferred) = ICHAR(InData%OutFmt_t(I:I), IntKi)
+          Int_Xferred = Int_Xferred   + 1
+        END DO ! I
+      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%FmtWidth
+      Int_Xferred   = Int_Xferred   + 1
+      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%TChanLen
       Int_Xferred   = Int_Xferred   + 1
  END SUBROUTINE Farm_PackParam
 
@@ -355,6 +401,28 @@ ENDIF
         Int_Xferred = Int_Xferred   + 1
       END DO ! I
       OutData%n_ChkptTime = IntKiBuf( Int_Xferred ) 
+      Int_Xferred   = Int_Xferred + 1
+      OutData%TStart = DbKiBuf( Db_Xferred ) 
+      Db_Xferred   = Db_Xferred + 1
+      OutData%WrBinOutFile = TRANSFER( IntKiBuf( Int_Xferred ), mask0 )
+      Int_Xferred   = Int_Xferred + 1
+      OutData%WrTxtOutFile = TRANSFER( IntKiBuf( Int_Xferred ), mask0 )
+      Int_Xferred   = Int_Xferred + 1
+      DO I = 1, LEN(OutData%Delim)
+        OutData%Delim(I:I) = CHAR(IntKiBuf(Int_Xferred))
+        Int_Xferred = Int_Xferred   + 1
+      END DO ! I
+      DO I = 1, LEN(OutData%OutFmt)
+        OutData%OutFmt(I:I) = CHAR(IntKiBuf(Int_Xferred))
+        Int_Xferred = Int_Xferred   + 1
+      END DO ! I
+      DO I = 1, LEN(OutData%OutFmt_t)
+        OutData%OutFmt_t(I:I) = CHAR(IntKiBuf(Int_Xferred))
+        Int_Xferred = Int_Xferred   + 1
+      END DO ! I
+      OutData%FmtWidth = IntKiBuf( Int_Xferred ) 
+      Int_Xferred   = Int_Xferred + 1
+      OutData%TChanLen = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1
  END SUBROUTINE Farm_UnPackParam
 

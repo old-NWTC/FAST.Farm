@@ -14,18 +14,25 @@ GOTO Done
 REM ----------------------------------------------------------------------------
 REM ------------------------- LOCAL PATHS --------------------------------------
 REM ----------------------------------------------------------------------------
+REM --------      THESE PATHS SHOULD WORK "AS IS", HOWEVER ---------------------
 REM -- USERS MAY EDIT THESE PATHS TO POINT TO FOLDERS ON THEIR LOCAL MACHINES. -
 REM -- NOTE: do not use quotation marks around the path names!!!! --------------
+REM -- IT is also NOT RECOMMENDED to use spaces in the path names!!!! ----------
 REM ----------------------------------------------------------------------------
 REM ----------------------------------------------------------------------------
 
 SET Root_Loc=..\..
-SET Subs_Loc=%Root_Loc%\subs\FAST\subs
 SET Farm_Loc=%Root_Loc%\src
-SET Registry=%Root_Loc%\subs\FAST\bin\Registry_win32.exe
 
-SET NWTC_Lib_Loc=%Subs_Loc%\NWTC_Library\source
+SET Driver_Loc=%Farm_Loc%\Driver
+SET Wake_Loc=%Farm_Loc%\WakeDynamics
+SET AmbWind_Loc=
 
+:: Get all of the paths we'd normally use in FAST, but make them relative to this %FAST_Loc% instead 
+:: note that Root_Loc and FAST_Loc get overwritten!
+SET FAST_Loc=%Root_Loc%\subs\FAST\
+SET SetFASTPaths=%FAST_Loc%\Compiling\VisualStudio\FASTlib\RunRegistry.bat
+call %SetFASTPaths% PathsOnly %FAST_Loc%
 
 SET ModuleName=%1
 
@@ -35,8 +42,13 @@ REM ----------------------------------------------------------------------------
 REM ---------------- RUN THE REGISTRY TO AUTO-GENERATE FILES -------------------
 REM ----------------------------------------------------------------------------
 :FarmDriver
-SET CURR_LOC=%Farm_Loc%\Driver
-%REGISTRY% "%CURR_LOC%\FAST_Farm_Registry.txt" -I "%NWTC_Lib_Loc%" -noextrap -O "%CURR_LOC%"
+SET CURR_LOC=%Driver_Loc%
+%REGISTRY% "%CURR_LOC%\FAST_Farm_Registry.txt" -I %Driver_Loc% -I %Wake_Loc% %ALL_FAST_INCLUDES% -noextrap -O "%CURR_LOC%"
+GOTO checkError
+
+:WakeDynamics
+SET CURR_LOC=%Wake_Loc%
+%REGISTRY% "%CURR_LOC%\WakeDynamics_Registry.txt" -I %Wake_Loc% -noextrap -O "%CURR_LOC%"
 GOTO checkError
 
 
@@ -46,29 +58,25 @@ IF %ERRORLEVEL% NEQ 0 (
 ECHO Error running FAST Registry for %ModuleName%.
 ) ELSE (
 ECHO Registry for %ModuleName% completed.
-REM COPY /Y "%ModuleName%_Types.f90"   "%CURR_LOC%"
-rem IF /I "%ModuleName%"=="MAP" COPY /Y "%ModuleName%_Types.h" "%CURR_LOC%"
 )
-
-
 
 
 :end
 REM ----------------------------------------------------------------------------
 REM ------------------------- CLEAR MEMORY -------------------------------------
 REM ----------------------------------------------------------------------------
-ECHO. 
+call %SetFASTPaths% end
 
-
-SET REGISTRY=
-
-SET NWTC_Lib_Loc=
-SET Root_Loc=
-SET Subs_Loc=
 SET Farm_Loc=
+
+SET Driver_Loc=
+SET Wake_Loc=
+SET AmbWind_Loc=
 
 SET ModuleName=
 SET CURR_LOC=
+SET SetFASTPaths=
+
 :Done
 echo %lines%
 set lines=

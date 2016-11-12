@@ -1,0 +1,82 @@
+###################################################################################################################################
+# Registry for FAST.Farm's WakeDynamics module in the FAST Modularization Framework
+# This Registry file is used to create MODULE WakeDynamics_Types, which contains all of the user-defined types needed in WakeDynamics.
+# It also contains copy, destroy, pack, and unpack routines associated with each defined data types.
+#
+# Entries are of the form
+# keyword <ModuleName/ModName> <TypeName>    <FieldType>    <FieldName>  <Dims>  <IO> <DNAME> <DESCRIP> <UNITS>
+#
+# Use ^ as a shortcut for the value from the previous line.
+# See NWTC Programmer's Handbook at https://nwtc.nrel.gov/FAST-Developers for further information on the format/contents of this file.
+###################################################################################################################################
+
+# ...... Include files (definitions from NWTC Library) ............................................................................
+include Registry_NWTC_Library.txt
+
+# ..... Constants .......................................................................................................
+param	WakeDynamics/WD      -               INTEGER         WakeDiamMod_RotDiam     - 1 -  "Wake diameter calculation model: rotor diameter" -
+param	^                    -               INTEGER         WakeDiamMod_Velocity    - 2 -  "Wake diameter calculation model: velocity-based" -
+param	^                    -               INTEGER         WakeDiamMod_MassFlux    - 3 -  "Wake diameter calculation model: mass-flux based" -
+param	^                    -               INTEGER         WakeDiamMod_MtmFlux     - 4 -  "Wake diameter calculation model: momentum-flux based" -
+
+# ..... InputFile Data .......................................................................................................
+typedef  ^                 WD_InputFileType  ReKi            dr             - - -  "Radial increment of radial finite-difference grid [>0.0]" m
+typedef  ^                 WD_InputFileType  IntKi           NumRadii       - - -  "Number of radii in the radial finite-difference grid [>=2]" -
+typedef  ^                 WD_InputFileType  IntKi           NumPlanes      - - -  "Number of wake planes [>=2]" -
+typedef  ^                 WD_InputFileType  ReKi            f_c            - - -  "Cut-off frequency of the low-pass time-filter for the wake advection, deflection, and meandering model [>0.0]" Hz
+typedef  ^                 WD_InputFileType  ReKi            C_HWkDfl_O     - - -  "Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor" m
+typedef  ^                 WD_InputFileType  ReKi            C_HWkDfl_OY    - - -  "Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor scaled with yaw error" m/rad
+typedef  ^                 WD_InputFileType  ReKi            C_HWkDfl_x     - - -  "Calibrated parameter in the correction for wake deflection defining the horizontal offset scaled with downstream distance" -
+typedef  ^                 WD_InputFileType  ReKi            C_HWkDfl_xY    - - -  "Calibrated parameter in the correction for wake deflection defining the horizontal offset scaled with downstream distance and yaw error" 1/rad
+typedef  ^                 WD_InputFileType  ReKi            C_NearWake     - - -  "Calibrated parameter for the near-wake correction [>-1.0]" -
+typedef  ^                 WD_InputFileType  ReKi            k_vAmb         - - -  "Calibrated parameter for the influence of ambient turbulence in the eddy viscosity [>=0.0]" - 
+typedef  ^                 WD_InputFileType  ReKi            k_vShr         - - -  "Calibrated parameter for the influence of the shear layer in the eddy viscosity [>=0.0]" - 
+typedef  ^                 WD_InputFileType  ReKi            C_vAmb_DMin    - - -  "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the minimum and exponential regions [>=0.0 ]" -
+typedef  ^                 WD_InputFileType  ReKi            C_vAmb_DMax    - - -  "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the exponential and maximum regions [> C_vAmb_DMin]" -
+typedef  ^                 WD_InputFileType  ReKi            C_vAmb_FMin    - - -  "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the value in the minimum region [>=0.0 and <=1.0]" -
+typedef  ^                 WD_InputFileType  ReKi            C_vAmb_Exp     - - -  "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the exponent in the exponential region [> 0.0]" -
+typedef  ^                 WD_InputFileType  ReKi            C_vShr_DMin    - - -  "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the minimum and exponential regions [>=0.0]" -
+typedef  ^                 WD_InputFileType  ReKi            C_vShr_DMax    - - -  "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the exponential and maximum regions [> C_vShr_DMin]" -
+typedef  ^                 WD_InputFileType  ReKi            C_vShr_FMin    - - -  "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the value in the minimum region [>=0.0 and <=1.0]" -
+typedef  ^                 WD_InputFileType  ReKi            C_vShr_Exp     - - -  "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the exponent in the exponential region [> 0.0]" -
+typedef  ^                 WD_InputFileType  IntKi           Mod_WakeDiam   - - -  "Wake diameter calculation model {1: rotor diameter, 2: velocity-based, 3: mass-flux based, 4: momentum-flux based} [DEFAULT=1]" -
+typedef  ^                 WD_InputFileType  ReKi            C_WakeDiam     - - -  "Calibrated parameter for wake diameter calculation [>0.0 and <1.0] [unused for Mod_WakeDiam=1]" -
+
+
+# ..... Initialization data .......................................................................................................
+# Define inputs that the initialization routine may need here:
+#   e.g., the name of the input file, the file root name, etc.
+typedef ^  InitInputType WD_InputFileType InputFileData  - - -   "FAST.Farm input-file data for wake dynamics" -
+
+
+# Define outputs from the initialization routine here:
+#typedef   ^               InitOutputType CHARACTER(ChanLen) WriteOutputHdr  {:} - -   "Names of the output-to-file channels" -
+#typedef   ^               InitOutputType CHARACTER(ChanLen) WriteOutputUnt  {:} - -   "Units of the output-to-file channels" -
+
+
+# ..... States ....................................................................................................................
+# Define continuous (differentiable) states here:
+#typedef    ^              ContinuousStateType ReKi     DummyContState - - -  "Remove this variable if you have continuous states" -
+
+# Define discrete (nondifferentiable) states here:
+#typedef   ^               DiscreteStateType   ReKi     DummyDiscState - - -  "Remove this variable if you have discrete states" -
+
+# Define constraint states here:
+#typedef   ^               ConstraintStateType ReKi     DummyConstrState - - - "Remove this variable if you have constraint states" -
+
+# Define any other states, including integer or logical states here:
+#typedef   ^               OtherStateType      IntKi    DummyOtherState - - - "Remove this variable if you have other states" -
+
+
+# ..... Misc/Optimization variables.................................................................................................
+# Define any data that are used only for efficiency purposes (these variables are not associated with time):
+#   e.g. indices for searching in an array, large arrays that are local variables in any routine called multiple times, etc.
+
+
+# ..... Parameters ................................................................................................................
+# Define parameters here:
+# Time step for integration of continuous states (if a fixed-step integrator is used) and update of discrete states:
+#typedef  ^               ParameterType         DbKi            DT              -    - - "Time step for cont. state integration & disc. state update" seconds
+#typedef  ^               ParameterType         DbKi            TMax            -    - - "Total run time" seconds
+#typedef  ^               ParameterType         CHARACTER(1024) OutFileRoot     -    - - "The root name derived from the primary FAST.Farm input file" -
+

@@ -48,6 +48,8 @@
 		<Filter Name="Header Files" Filter="fi;fd;h;inc"/>
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<Filter Name="Driver">
+		<Filter Name="SuperController"/>
 		<Filter Name="RegistryFiles">
 		<File RelativePath="..\..\src\Driver\FAST_Farm_Registry.txt">
 			<FileConfiguration Name="Debug|Win32">
@@ -60,5 +62,17 @@
 				<Tool Name="VFCustomBuildTool" CommandLine="CALL RunRegistry.bat FarmDriver" Description="Running Registry for FAST.Farm Driver" Outputs="..\..\src\Driver\FAST_Farm_Types.f90"/></FileConfiguration></File>
 		<File RelativePath="..\..\src\Driver\FAST_Farm_Types.f90"/></Filter>
 		<File RelativePath="..\..\src\Driver\FAST_Farm.f90"/>
-		<File RelativePath="..\..\src\Driver\FAST_Farm_Subs.f90"/></Filter></Files>
+		<File RelativePath="..\..\src\Driver\FAST_Farm_Subs.f90"/></Filter>
+		<Filter Name="AmbientWind_ArrayEffects"/>
+		<Filter Name="WakeDynamics">
+		<File RelativePath="..\..\src\WakeDynamics\WakeDynamics_Registry.txt">
+			<FileConfiguration Name="Debug|Win32">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL RunRegistry.bat WakeDynamics" Description="Running Registry for WakeDynamics" Outputs="..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL RunRegistry.bat WakeDynamics" Description="Running Registry for WakeDynamics" Outputs="..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Debug|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL RunRegistry.bat WakeDynamics" Description="Running Registry for WakeDynamics" Outputs="..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release|Win32">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL RunRegistry.bat WakeDynamics" Description="Running Registry for WakeDynamics" Outputs="..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></FileConfiguration></File>
+		<File RelativePath="..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></Filter></Filter></Files>
 	<Globals/></VisualStudioProject>

@@ -4,7 +4,7 @@
 # It also contains copy, destroy, pack, and unpack routines associated with each defined data types.
 #
 # Entries are of the form
-# keyword <FAST_Farm/Farm> <TypeName>    <FieldType>    <FieldName>  <Dims>  <IO> <DNAME> <DESCRIP> <UNITS>
+# keyword <ModuleName/ModName> <TypeName>    <FieldType>    <FieldName>  <Dims>  <IO> <DNAME> <DESCRIP> <UNITS>
 #
 # Use ^ as a shortcut for the value from the previous line.
 # See NWTC Programmer's Handbook at https://nwtc.nrel.gov/FAST-Developers for further information on the format/contents of this file.
@@ -24,24 +24,11 @@ include Registry_NWTC_Library.txt
 #typedef   ^               InitOutputType CHARACTER(ChanLen) WriteOutputUnt  {:} - -   "Units of the output-to-file channels" -
 
 
-# ..... States ....................................................................................................................
-# Define continuous (differentiable) states here:
-#typedef    ^              ContinuousStateType ReKi     DummyContState - - -  "Remove this variable if you have continuous states" -
-
-# Define discrete (nondifferentiable) states here:
-#typedef   ^               DiscreteStateType   ReKi     DummyDiscState - - -  "Remove this variable if you have discrete states" -
-
-# Define constraint states here:
-#typedef   ^               ConstraintStateType ReKi     DummyConstrState - - - "Remove this variable if you have constraint states" -
-
-# Define any other states, including integer or logical states here:
-#typedef   ^               OtherStateType      IntKi    DummyOtherState - - - "Remove this variable if you have other states" -
-
 
 # ..... Misc/Optimization variables.................................................................................................
 # Define any data that are used only for efficiency purposes (these variables are not associated with time):
 #   e.g. indices for searching in an array, large arrays that are local variables in any routine called multiple times, etc.
-#typedef    ^              MiscVarType          FAST_TurbineType     Turbine {:}- - -  "Data for each of the FAST instances" -
+typedef    ^              MiscVarType          FAST_TurbineType     Turbine {:}- - -  "Data for each of the FAST instances" -
 
 
 # ..... Parameters ................................................................................................................
@@ -56,4 +43,14 @@ typedef  ^               ParameterType         CHARACTER(1024) WT_FASTInFile {:}
 typedef  ^               ParameterType         CHARACTER(1024) FTitle          -    - - "The description line from the primary FAST.Farm input file" -
 typedef  ^               ParameterType         CHARACTER(1024) OutFileRoot     -    - - "The root name derived from the primary FAST.Farm input file" -
 typedef  ^               ParameterType         INTEGER         n_ChkptTime     -    - - "Number of time steps between writing checkpoint files"	-
+typedef  ^               ParameterType         DbKi            TStart          -    - - "Time to begin tabular output" s
+typedef  ^               ParameterType         LOGICAL         WrBinOutFile    -    - - "Write a binary output file? (.outb)" -
+typedef  ^               ParameterType         LOGICAL         WrTxtOutFile    -    - - "Write a text (formatted) output file? (.out)" -
+typedef  ^               ParameterType         CHARACTER(1)    Delim           -    - - "Delimiter between columns of text output file (.out): space or tab" -
+typedef  ^               ParameterType         CHARACTER(20)   OutFmt          -    - - "Format used for text tabular output (except time); resulting field should be 10 characters" -
+typedef  ^               ParameterType         CHARACTER(20)   OutFmt_t        -    - - "Format used for time channel in text tabular output; resulting field should be 10 characters" -
+typedef  ^               ParameterType         IntKi           FmtWidth        -    - - "width of the time OutFmt specifier" -
+typedef  ^               ParameterType         IntKi           TChanLen        -    - - "width of the time channel" -
 
+# ..... FAST.Farm data ................................................................................................................
+#

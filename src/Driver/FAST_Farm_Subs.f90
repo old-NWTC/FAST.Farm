@@ -27,6 +27,7 @@ MODULE FAST_Farm_Subs
 
    USE FAST_Farm_Types
    USE NWTC_Library
+   USE WakeDynamics_Types
 
    IMPLICIT NONE
 
@@ -49,8 +50,9 @@ SUBROUTINE Farm_Initialize( p, ErrStat, ErrMsg, InFile )
    ! local variables      
    INTEGER(IntKi)                          :: ErrStat2   
    CHARACTER(ErrMsgLen)                    :: ErrMsg2
-   CHARACTER(1024)                         :: InputFile            ! A CHARACTER string containing the name of the primary FAST input file
-                                           
+   CHARACTER(1024)                         :: InputFile           ! A CHARACTER string containing the name of the primary FAST input file
+   TYPE(WD_InitInputType)                  :: WD_InitInput        ! init-input data for WakeDynamics module
+   
    CHARACTER(*), PARAMETER                 :: RoutineName = 'Farm_Initialize'       
    
    
@@ -95,13 +97,24 @@ SUBROUTINE Farm_Initialize( p, ErrStat, ErrMsg, InFile )
       
    !...............................................................................................................................  
 
-   call Farm_ReadPrimaryFile( InputFile, p, ErrStat2, ErrMsg2 )
+   call Farm_ReadPrimaryFile( InputFile, p, WD_InitInput%InputFileData, ErrStat2, ErrMsg2 )
       CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       IF (ErrStat >= AbortErrLev) THEN
          CALL Cleanup()
          RETURN
       END IF
 
+   call Farm_ValidateInput( p, WD_InitInput%InputFileData, ErrStat2, ErrMsg2 )
+      CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+      IF (ErrStat >= AbortErrLev) THEN
+         CALL Cleanup()
+         RETURN
+      END IF   
+      
+   p%TChanLen = max( 10, int(log10(p%TMax))+7 )
+   p%OutFmt_t = 'F'//trim(num2lstr( p%TChanLen ))//'.4' ! 'F10.4'    
+
+   
    !! ........................
    !! Set up output for glue code (must be done after all modules are initialized so we have their WriteOutput information)
    !! ........................
@@ -152,15 +165,15 @@ END SUBROUTINE Farm_Initialize
 !----------------------------------------------------------------------------------------------------------------------------------
 !> This routine reads in the primary FAST.Farm input file, does some validation, and places the values it reads in the
 !!   parameter structure (p). It prints to an echo file if requested.
-SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, ErrStat, ErrMsg )
+SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, WD_InitInp, ErrStat, ErrMsg )
 
-   IMPLICIT                        NONE
 
       ! Passed variables
    TYPE(Farm_ParameterType), INTENT(INOUT) :: p                               !< The parameter data for the FAST (glue-code) simulation
-   CHARACTER(*),             INTENT(IN)    :: InputFile                       !< Name of the file containing the primary input data
-   INTEGER(IntKi),           INTENT(OUT)   :: ErrStat                         !< Error status
-   CHARACTER(*),             INTENT(OUT)   :: ErrMsg                          !< Error message
+   CHARACTER(*),             INTENT(IN   ) :: InputFile                       !< Name of the file containing the primary input data
+   TYPE(WD_InputFileType),   INTENT(  OUT) :: WD_InitInp                      !< input-file data for WakeDynamics module
+   INTEGER(IntKi),           INTENT(  OUT) :: ErrStat                         !< Error status
+   CHARACTER(*),             INTENT(  OUT) :: ErrMsg                          !< Error message
 
       ! Local variables:
    REAL(DbKi)                    :: TmpTime                                   ! temporary variable to read SttsTime and ChkptTime before converting to #steps based on DT
@@ -169,20 +182,20 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, ErrStat, ErrMsg )
    INTEGER(IntKi)                :: UnEc                                      ! I/O unit for echo file. If > 0, file is open for writing.
 
    INTEGER(IntKi)                :: IOS                                       ! Temporary Error status
-   INTEGER(IntKi)                :: ErrStat2                                  ! Temporary Error status
    INTEGER(IntKi)                :: OutFileFmt                                ! An integer that indicates what kind of tabular output should be generated (1=text, 2=binary, 3=both)
    INTEGER(IntKi)                :: NLinTimes                                 ! An integer that indicates how many times to linearize
    LOGICAL                       :: Echo                                      ! Determines if an echo file should be written
    LOGICAL                       :: TabDelim                                  ! Determines if text output should be delimited by tabs (true) or space (false)
-   CHARACTER(ErrMsgLen)          :: ErrMsg2                                   ! Temporary Error message
    CHARACTER(1024)               :: PriPath                                   ! Path name of the primary file
 
    CHARACTER(10)                 :: AbortLevel                                ! String that indicates which error level should be used to abort the program: WARNING, SEVERE, or FATAL
    CHARACTER(30)                 :: Line                                      ! string for default entry in input file
 
+   INTEGER(IntKi)                :: ErrStat2                                  ! Temporary Error status
+   CHARACTER(ErrMsgLen)          :: ErrMsg2                                   ! Temporary Error message
    CHARACTER(*),   PARAMETER     :: RoutineName = 'Farm_ReadPrimaryFile'
    
-
+   
       ! Initialize some variables:
    UnEc = -1
    Echo = .FALSE.                        ! Don't echo until we've read the "Echo" flag
@@ -213,7 +226,7 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, ErrStat, ErrMsg )
    DO
    !-------------------------- HEADER ---------------------------------------------
 
-      CALL ReadCom( UnIn, InputFile, 'File header: Module Version (line 1)', ErrStat2, ErrMsg2, UnEc )
+      CALL ReadCom( UnIn, InputFile, 'File header: FAST.Farm Version (line 1)', ErrStat2, ErrMsg2, UnEc )
          CALL SetErrStat( ErrStat2, ErrMsg2,ErrStat,ErrMsg,RoutineName)
          if ( ErrStat >= AbortErrLev ) then
             call cleanup()
@@ -384,48 +397,211 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, ErrStat, ErrMsg )
       end if      
       
       
-   !   ! dr - Radial increment of radial finite-difference grid (m) [>0.0]:
-   !CALL ReadVar( UnIn, InputFile, p%dr, "dr", "Radial increment of radial finite-difference grid (m) [>0.0]", ErrStat2, ErrMsg2, UnEc)
-   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   !   if ( ErrStat >= AbortErrLev ) then
-   !      call cleanup()
-   !      RETURN        
-   !   end if
-   !
-   !   ! NumRadii - Number of radii in the radial finite-difference grid (-) [>=2]:
-   !CALL ReadVar( UnIn, InputFile, p%NumRadii, "NumRadii", "Number of radii in the radial finite-difference grid (-) [>=2]", ErrStat2, ErrMsg2, UnEc)
-   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   !   if ( ErrStat >= AbortErrLev ) then
-   !      call cleanup()
-   !      RETURN        
-   !   end if
-   !
-   !   ! NumPlanes - Number of wake planes (-) [>=2]:
-   !CALL ReadVar( UnIn, InputFile, p%NumPlanes, "NumPlanes", "Number of wake planes (-) [>=2]", ErrStat2, ErrMsg2, UnEc)
-   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   !   if ( ErrStat >= AbortErrLev ) then
-   !      call cleanup()
-   !      RETURN        
-   !   end if
-      
-      
-      
-!!!!!DEFAULT            f_c                Cut-off frequency of the low-pass time-filter for the wake advection, deflection, and meandering model (Hz) [>0.0] or DEFAULT [DEFAULT=0.0333333]
-!!!!!DEFAULT            C_NearWake         Calibrated parameter for near-wake correction (-) [>-1.0] or DEFAULT [DEFAULT=2.0]
-!!!!!DEFAULT            k_vAmb             Calibrated parameter for the influence of ambient turbulence in the eddy viscosity (-) [>=0.0] or DEFAULT [DEFAULT=0.07  ]
-!!!!!DEFAULT            k_vShr             Calibrated parameter for the influence of the shear layer    in the eddy viscosity (-) [>=0.0] or DEFAULT [DEFAULT=0.0178]
-!!!!!DEFAULT            C_vAmb_DMin        Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the minimum and exponential regions (-) [>=0.0          ] or DEFAULT [DEFAULT=0.0  ]
-!!!!!DEFAULT            C_vAmb_DMax        Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the exponential and maximum regions (-) [> C_vAmb_DMin  ] or DEFAULT [DEFAULT=2.0  ]
-!!!!!DEFAULT            C_vAmb_FMin        Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the value in the minimum region                                                (-) [>=0.0 and <=1.0] or DEFAULT [DEFAULT=0.0  ]
-!!!!!DEFAULT            C_vAmb_Exp         Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the exponent in the exponential region                                         (-) [> 0.0          ] or DEFAULT [DEFAULT=1.0  ]
-!!!!!DEFAULT            C_vShr_DMin        Calibrated parameter in the eddy viscosity filter function for the shear layer    defining the transitional diameter fraction between the minimum and exponential regions (-) [>=0.0          ] or DEFAULT [DEFAULT=2.0  ]
-!!!!!DEFAULT            C_vShr_DMax        Calibrated parameter in the eddy viscosity filter function for the shear layer    defining the transitional diameter fraction between the exponential and maximum regions (-) [> C_vShr_DMin  ] or DEFAULT [DEFAULT=11.0 ]
-!!!!!DEFAULT            C_vShr_FMin        Calibrated parameter in the eddy viscosity filter function for the shear layer    defining the value in the minimum region                                                (-) [>=0.0 and <=1.0] or DEFAULT [DEFAULT=0.035]
-!!!!!DEFAULT            C_vShr_Exp         Calibrated parameter in the eddy viscosity filter function for the shear layer    defining the exponent in the exponential region                                         (-) [> 0.0          ] or DEFAULT [DEFAULT=0.4  ]
-!!!!!DEFAULT            Mod_WakeDiam       Wake diameter calculation model (-) (switch) {1: rotor diameter, 2: velocity-based, 3: momentum-based} or DEFAULT [DEFAULT=1]
-!!!!!DEFAULT            C_WakeDiam         Calibrated parameter for wake diameter calculation (-) [>0.0 and <1.0] or DEFAULT [DEFAULT=0.95] [unused for Mod_WakeDiam=1]
-      
+      ! dr - Radial increment of radial finite-difference grid (m) [>0.0]:
+   CALL ReadVar( UnIn, InputFile, WD_InitInp%dr, "dr", "Radial increment of radial finite-difference grid (m) [>0.0]", ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if
    
+      ! NumRadii - Number of radii in the radial finite-difference grid (-) [>=2]:
+   CALL ReadVar( UnIn, InputFile, WD_InitInp%NumRadii, "NumRadii", "Number of radii in the radial finite-difference grid (-) [>=2]", ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if
+   
+      ! NumPlanes - Number of wake planes (-) [>=2]:
+   CALL ReadVar( UnIn, InputFile, WD_InitInp%NumPlanes, "NumPlanes", "Number of wake planes (-) [>=2]", ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if
+      
+      ! f_c - Cut-off frequency of the low-pass time-filter for the wake advection, deflection, and meandering model (Hz) [>0.0] or DEFAULT [DEFAULT=1/30]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%f_c, "f_c", "Number of wake planes (-) [>=2]", 1.0_ReKi/30.0_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if
+      
+      ! C_HWkDfl_O - Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor (m) or DEFAULT [DEFAULT=-2.9]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_HWkDfl_O, "C_HWkDfl_O", &
+      "Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor (m) or DEFAULT [DEFAULT=-2.9]", &
+      -2.9_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if
+
+      ! C_HWkDfl_OY - Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor scaled with yaw error (m/deg) or DEFAULT [DEFAULT=-0.24]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_HWkDfl_OY, "C_HWkDfl_OY", &
+      "Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor scaled with yaw error (m/deg) or DEFAULT [DEFAULT=-0.24]", &
+      -0.24_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if
+   WD_InitInp%C_HWkDfl_OY = WD_InitInp%C_HWkDfl_OY/D2R !immediately convert to m/radians instead of m/degrees      
+      
+      ! C_HWkDfl_x - Calibrated parameter in the correction for wake deflection defining the horizontal offset scaled with downstream distance (-) or DEFAULT [DEFAULT=-0.0054]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_HWkDfl_x, "C_HWkDfl_x", &
+      "Calibrated parameter in the correction for wake deflection defining the horizontal offset scaled with downstream distance (-) or DEFAULT [DEFAULT=-0.0054]", &
+      -0.0054_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if      
+         
+      ! C_HWkDfl_xY - Calibrated parameter in the correction for wake deflection defining the horizontal offset scaled with downstream distance and yaw error (1/deg) or DEFAULT [DEFAULT= 0.00039]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_HWkDfl_xY, "C_HWkDfl_xY", &
+      "Calibrated parameter in the correction for wake deflection defining the horizontal offset scaled with downstream distance and yaw error (1/deg) or DEFAULT [DEFAULT= 0.00039]", &
+      0.00039_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if      
+   WD_InitInp%C_HWkDfl_xY = WD_InitInp%C_HWkDfl_xY/D2R !immediately convert to 1/radians instead of 1/degrees      
+
+   
+      ! C_NearWake - Calibrated parameter for the near-wake correction (-) [>-1.0] or DEFAULT [DEFAULT=2.0]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_NearWake, "C_NearWake", &
+      "Calibrated parameter for the near-wake correction (-) [>-1.0] or DEFAULT [DEFAULT=2.0]", &
+      2.0_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if      
+              
+      ! k_vAmb - Calibrated parameter for the influence of ambient turbulence in the eddy viscosity (-) [>=0.0] or DEFAULT [DEFAULT=0.07 ]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%k_vAmb, "k_vAmb", &
+      "Calibrated parameter for the influence of ambient turbulence in the eddy viscosity (-) [>=0.0] or DEFAULT [DEFAULT=0.07]", &
+      0.07_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if      
+         
+      ! k_vShr - Calibrated parameter for the influence of the shear layer in the eddy viscosity (-) [>=0.0] or DEFAULT [DEFAULT=0.018]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%k_vShr, "k_vShr", &
+      "Calibrated parameter for the influence of the shear layer in the eddy viscosity (-) [>=0.0] or DEFAULT [DEFAULT=0.018]", &
+      0.018_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if      
+
+      ! C_vAmb_DMin - Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the minimum and exponential regions (-) [>=0.0] or DEFAULT [DEFAULT=0.0]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_vAmb_DMin, "C_vAmb_DMin", &
+      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the minimum and exponential regions (-) [>=0.0] or DEFAULT [DEFAULT=0.0]", &
+      0.0_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if      
+      
+      ! C_vAmb_DMax - Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the exponential and maximum regions (-) [> C_vAmb_DMin  ] or DEFAULT [DEFAULT=2.0]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_vAmb_DMax, "C_vAmb_DMax", &
+      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the exponential and maximum regions (-) [> C_vAmb_DMin  ] or DEFAULT [DEFAULT=2.0]", &
+      2.0_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if      
+        
+      ! C_vAmb_FMin - Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the value in the minimum region (-) [>=0.0 and <=1.0] or DEFAULT [DEFAULT=0.0]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_vAmb_FMin, "C_vAmb_FMin", &
+      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the value in the minimum region (-) [>=0.0 and <=1.0] or DEFAULT [DEFAULT=0.0]", &
+      0.0_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if      
+      
+      ! C_vAmb_Exp - Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the exponent in the exponential region (-) [> 0.0] or DEFAULT [DEFAULT=1.0]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_vAmb_Exp, "C_vAmb_Exp", &
+      "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the exponent in the exponential region (-) [> 0.0] or DEFAULT [DEFAULT=1.0]", &
+      1.0_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if      
+        
+      ! C_vShr_DMin - Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the minimum and exponential regions (-) [>=0.0] or DEFAULT [DEFAULT=2.0]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_vShr_DMin, "C_vShr_DMin", &
+      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the minimum and exponential regions (-) [>=0.0] or DEFAULT [DEFAULT=2.0]", &
+      2.0_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if            
+         
+      ! C_vShr_DMax - Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the exponential and maximum regions (-) [> C_vShr_DMin] or DEFAULT [DEFAULT=11.0]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_vShr_DMax, "C_vShr_DMax", &
+      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the exponential and maximum regions (-) [> C_vShr_DMin] or DEFAULT [DEFAULT=11.0]", &
+      11.0_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if            
+         
+      ! C_vShr_FMin - Calibrated parameter in the eddy viscosity filter function for the shear layer defining the value in the minimum region (-) [>=0.0 and <=1.0] or DEFAULT [DEFAULT=0.035]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_vShr_FMin, "C_vShr_FMin", &
+      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the value in the minimum region (-) [>=0.0 and <=1.0] or DEFAULT [DEFAULT=0.035]", &
+      0.035_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if            
+        
+      ! C_vShr_Exp - Calibrated parameter in the eddy viscosity filter function for the shear layer defining the exponent in the exponential region (-) [> 0.0] or DEFAULT [DEFAULT=0.4]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_vShr_Exp, "C_vShr_Exp", &
+      "Calibrated parameter in the eddy viscosity filter function for the shear layer defining the exponent in the exponential region (-) [> 0.0] or DEFAULT [DEFAULT=0.4]", &
+      0.4_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if            
+        
+      ! Mod_WakeDiam - Wake diameter calculation model (-) (switch) {1: rotor diameter, 2: velocity-based, 3: mass-flux based, 4: momentum-flux based} or DEFAULT [DEFAULT=1]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%Mod_WakeDiam, "Mod_WakeDiam", &
+      "Wake diameter calculation model (-) (switch) {1: rotor diameter, 2: velocity-based, 3: mass-flux based, 4: momentum-flux based} or DEFAULT [DEFAULT=1]", &
+      WakeDiamMod_RotDiam, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if            
+        
+      ! C_WakeDiam - Calibrated parameter for wake diameter calculation (-) [>0.0 and <1.0] or DEFAULT [DEFAULT=0.95] [unused for Mod_WakeDiam=1]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_WakeDiam, "C_WakeDiam", &
+      "Calibrated parameter for wake diameter calculation (-) [>0.0 and <1.0] or DEFAULT [DEFAULT=0.95] [unused for Mod_WakeDiam=1]", &
+      0.95_ReKi, ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if            
+                            
    !---------------------- OUTPUT --------------------------------------------------
    CALL ReadCom( UnIn, InputFile, 'Section Header: Output', ErrStat2, ErrMsg2, UnEc )
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
@@ -449,61 +625,62 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, ErrStat, ErrMsg )
       END IF
       
 
-   !   ! TStart - Time to begin tabular output (s) [>=0.0]:
-   !CALL ReadVar( UnIn, InputFile, p%TStart, "TStart", "Time to begin tabular output (s) [>=0.0]", ErrStat2, ErrMsg2, UnEc)
-   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   !   if ( ErrStat >= AbortErrLev ) then
-   !      call cleanup()
-   !      RETURN        
-   !   end if
-   !
-   !   ! OutFileFmt - Format for tabular (time-marching) output file (switch) {1: text file [<RootName>.out], 2: binary file [<RootName>.outb], 3: both}:
-   !CALL ReadVar( UnIn, InputFile, OutFileFmt, "OutFileFmt", "Format for tabular (time-marching) output file (switch) {1: text file [<RootName>.out], 2: binary file [<RootName>.outb], 3: both}", ErrStat2, ErrMsg2, UnEc)
-   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   !   if ( ErrStat >= AbortErrLev ) then
-   !      call cleanup()
-   !      RETURN        
-   !   end if
-   !
-   !   SELECT CASE (OutFileFmt)
-   !      CASE (1_IntKi)
-   !         p%WrBinOutFile = .FALSE.
-   !         p%WrTxtOutFile = .TRUE.
-   !      CASE (2_IntKi)
-   !         p%WrBinOutFile = .TRUE.
-   !         p%WrTxtOutFile = .FALSE.
-   !      CASE (3_IntKi)
-   !         p%WrBinOutFile = .TRUE.
-   !         p%WrTxtOutFile = .TRUE.
-   !      CASE DEFAULT
-   !         CALL SetErrStat( ErrID_Fatal, "FAST's OutFileFmt must be 1, 2, or 3.",ErrStat,ErrMsg,RoutineName)
-   !         if ( ErrStat >= AbortErrLev ) then
-   !            call cleanup()
-   !            RETURN        
-   !         end if
-   !   END SELECT
-   !
-   !   ! TabDelim - Use tab delimiters in text tabular output file? (flag) {uses spaces if False}:
-   !CALL ReadVar( UnIn, InputFile, TabDelim, "TabDelim", "Use tab delimiters in text tabular output file? (flag) {uses spaces if False}", ErrStat2, ErrMsg2, UnEc)
-   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   !   if ( ErrStat >= AbortErrLev ) then
-   !      call cleanup()
-   !      RETURN        
-   !   end if
-   !
-   !   IF ( TabDelim ) THEN
-   !      p%Delim = TAB
-   !   ELSE
-   !      p%Delim = ' '
-   !   END IF
-   !
-   !   ! OutFmt - Format used for text tabular output, excluding the time channel. Resulting field should be 10 characters. (quoted string):
-   !CALL ReadVar( UnIn, InputFile, p%OutFmt, "OutFmt", "Format used for text tabular output, excluding the time channel. Resulting field should be 10 characters. (quoted string)", ErrStat2, ErrMsg2, UnEc)
-   !   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   !   if ( ErrStat >= AbortErrLev ) then
-   !      call cleanup()
-   !      RETURN        
-   !   end if
+      ! TStart - Time to begin tabular output (s) [>=0.0]:
+   CALL ReadVar( UnIn, InputFile, p%TStart, "TStart", "Time to begin tabular output (s) [>=0.0]", ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if
+   
+      ! OutFileFmt - Format for tabular (time-marching) output file (switch) {1: text file [<RootName>.out], 2: binary file [<RootName>.outb], 3: both}:
+   CALL ReadVar( UnIn, InputFile, OutFileFmt, "OutFileFmt", "Format for tabular (time-marching) output file (switch) {1: text file [<RootName>.out], 2: binary file [<RootName>.outb], 3: both}", ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if
+   
+      SELECT CASE (OutFileFmt)
+         CASE (1_IntKi)
+            p%WrBinOutFile = .FALSE.
+            p%WrTxtOutFile = .TRUE.
+         CASE (2_IntKi)
+            p%WrBinOutFile = .TRUE.
+            p%WrTxtOutFile = .FALSE.
+         CASE (3_IntKi)
+            p%WrBinOutFile = .TRUE.
+            p%WrTxtOutFile = .TRUE.
+         CASE DEFAULT
+            ! we'll check this later....
+            !CALL SetErrStat( ErrID_Fatal, "FAST.Farm's OutFileFmt must be 1, 2, or 3.",ErrStat,ErrMsg,RoutineName)
+            !if ( ErrStat >= AbortErrLev ) then
+            !   call cleanup()
+            !   RETURN        
+            !end if
+      END SELECT
+   
+      ! TabDelim - Use tab delimiters in text tabular output file? (flag) {uses spaces if False}:
+   CALL ReadVar( UnIn, InputFile, TabDelim, "TabDelim", "Use tab delimiters in text tabular output file? (flag) {uses spaces if False}", ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if
+   
+      IF ( TabDelim ) THEN
+         p%Delim = TAB
+      ELSE
+         p%Delim = ' '
+      END IF
+   
+      ! OutFmt - Format used for text tabular output, excluding the time channel. Resulting field should be 10 characters. (quoted string):
+   CALL ReadVar( UnIn, InputFile, p%OutFmt, "OutFmt", "Format used for text tabular output, excluding the time channel. Resulting field should be 10 characters. (quoted string)", ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if
 
       
  !!!!!!!                  OutList            The next line(s) contains a list of output parameters.  See OutListParameters.xlsx for a listing of available output channels (quoted string)      
@@ -521,6 +698,69 @@ CONTAINS
    end subroutine cleanup
    !...............................................................................................................................
 END SUBROUTINE Farm_ReadPrimaryFile
+!----------------------------------------------------------------------------------------------------------------------------------
+SUBROUTINE Farm_ValidateInput( p, WD_InitInp, ErrStat, ErrMsg )
+      ! Passed variables
+   TYPE(Farm_ParameterType), INTENT(INOUT) :: p                               !< The parameter data for the FAST (glue-code) simulation
+   TYPE(WD_InputFileType),   INTENT(IN   ) :: WD_InitInp                      !< input-file data for WakeDynamics module
+   INTEGER(IntKi),           INTENT(  OUT) :: ErrStat                         !< Error status
+   CHARACTER(*),             INTENT(  OUT) :: ErrMsg                          !< Error message
+
+      ! Local variables:
+   INTEGER(IntKi)                :: ErrStat2                                  ! Temporary Error status
+   CHARACTER(ErrMsgLen)          :: ErrMsg2                                   ! Temporary Error message
+   CHARACTER(*),   PARAMETER     :: RoutineName = 'Farm_ValidateInput'
+   
+   ErrStat = ErrID_None
+   ErrMsg  = ""
+   
+   IF (p%TMax < 0.0_ReKi) CALL SetErrStat(ErrID_Fatal,'TMax must not be negative.',ErrStat,ErrMsg,RoutineName)
+   IF (p%NumTurbines < 1) CALL SetErrStat(ErrID_Fatal,'FAST.Farm requires at least 1 turbine. Set NumTurbines > 0.',ErrStat,ErrMsg,RoutineName)
+   
+   ! --- WAKE DYNAMICS ---
+   IF (WD_InitInp%dr <= 0.0_ReKi) CALL SetErrStat(ErrID_Fatal,'dr (radial increment) must be larger than 0.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%NumRadii < 2) CALL SetErrStat(ErrID_Fatal,'NumRadii (number of radii) must be at least 2.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%NumPlanes < 2) CALL SetErrStat(ErrID_Fatal,'NumPlanes (number of wake planes) must be at least 2.',ErrStat,ErrMsg,RoutineName)
+
+   IF (WD_InitInp%f_c < 2) CALL SetErrStat(ErrID_Fatal,'f_c (cut-off frequency) must be more than 0 Hz.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%C_NearWake <= -1.0_Reki) CALL SetErrStat(ErrID_Fatal,'C_NearWake parameter must be more than -1.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%k_vAmb < 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'k_vAmb parameter must not be negative.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%k_vShr < 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'k_vShr parameter must not be negative.',ErrStat,ErrMsg,RoutineName)
+   
+   IF (WD_InitInp%C_vAmb_DMin < 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'C_vAmb_DMin parameter must not be negative.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%C_vAmb_DMax <= WD_InitInp%C_vAmb_DMin) CALL SetErrStat(ErrID_Fatal,'C_vAmb_DMax parameter must be larger than C_vAmb_DMin.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%C_vAmb_FMin < 0.0_Reki .or. WD_InitInp%C_vAmb_FMin > 1.0_Reki) CALL SetErrStat(ErrID_Fatal,'C_vAmb_FMin parameter must be between 0 and 1 (inclusive).',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%C_vAmb_Exp  <= 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'C_vAmb_Exp parameter must be positive.',ErrStat,ErrMsg,RoutineName)
+
+   IF (WD_InitInp%C_vShr_DMin < 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'C_vShr_DMin parameter must not be negative.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%C_vShr_DMax <= WD_InitInp%C_vShr_DMin) CALL SetErrStat(ErrID_Fatal,'C_vShr_DMax parameter must be larger than C_vShr_DMin.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%C_vShr_FMin < 0.0_Reki .or. WD_InitInp%C_vShr_FMin > 1.0_ReKi) CALL SetErrStat(ErrID_Fatal,'C_vShr_FMin parameter must be between 0 and 1 (inclusive).',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%C_vShr_Exp  <= 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'C_vShr_Exp parameter must be positive.',ErrStat,ErrMsg,RoutineName)
+
+   IF (WD_InitInp%Mod_WakeDiam < WakeDiamMod_RotDiam .or. WD_InitInp%Mod_WakeDiam > WakeDiamMod_MtmFlux) THEN
+      call SetErrStat(ErrID_Fatal,'Wake diameter calculation model, Mod_WakeDiam, must be 1 (rotor diameter), 2 (velocity-based), 3 (mass-flux based), 4 (momentum-flux based) or DEFAULT.',ErrStat,ErrMsg,RoutineName)
+   END IF
+   
+   IF (WD_InitInp%Mod_WakeDiam /= WakeDiamMod_RotDiam) THEN
+      IF (WD_InitInp%C_WakeDiam <= 0.0_Reki .or. WD_InitInp%C_WakeDiam >= 1.0_ReKi) THEN
+         CALL SetErrStat(ErrID_Fatal,'C_vShr_FMin parameter must be between 0 and 1 (exclusive).',ErrStat,ErrMsg,RoutineName)
+      END IF
+   END IF
+         
+   !--- OUTPUT ---
+   IF ( p%n_ChkptTime < 1_IntKi   ) CALL SetErrStat( ErrID_Fatal, 'ChkptTime must be greater than 0 seconds.', ErrStat, ErrMsg, RoutineName )
+   IF (p%TStart < 0.0_ReKi) CALL SetErrStat(ErrID_Fatal,'TStart must not be negative.',ErrStat,ErrMsg,RoutineName)
+   IF (.not. p%WrBinOutFile .and. .not. p%WrTxtOutFile) CALL SetErrStat( ErrID_Fatal, "FAST.Farm's OutFileFmt must be 1, 2, or 3.",ErrStat,ErrMsg,RoutineName)
+
+      ! Check that OutFmt is a valid format specifier and will fit over the column headings
+   CALL ChkRealFmtStr( p%OutFmt, 'OutFmt', p%FmtWidth, ErrStat2, ErrMsg2 ) !this sets p%FmtWidth!
+      call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      
+   IF ( p%FmtWidth /= ChanLen ) CALL SetErrStat( ErrID_Warn, 'OutFmt produces a column width of '// &
+         TRIM(Num2LStr(p%FmtWidth))//' instead of '//TRIM(Num2LStr(ChanLen))//' characters.', ErrStat, ErrMsg, RoutineName )
+      
+   
+END SUBROUTINE Farm_ValidateInput
 !----------------------------------------------------------------------------------------------------------------------------------
 
 END MODULE FAST_Farm_Subs

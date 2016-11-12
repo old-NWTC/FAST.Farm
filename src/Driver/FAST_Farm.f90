@@ -31,11 +31,8 @@ PROGRAM FAST_Farm
 
    ! Local parameters:
 REAL(DbKi),             PARAMETER     :: t_initial = 0.0_DbKi                    ! Initial time
-INTEGER(IntKi)                        :: NumTurbines 
    
    ! Other/Misc variables
-!TYPE(FAST_TurbineType), ALLOCATABLE   :: Turbine(:)                              ! Data for each turbine instance <<< in the FAST_Farm_Types file? Are we going to make this global data and pass the index to FAST?
-
 INTEGER(IntKi)                        :: i_turb                                  ! current turbine number
 INTEGER(IntKi)                        :: n_t_global                              ! simulation time step, loop counter for global simulation
 INTEGER(IntKi)                        :: ErrStat                                 ! Error status
