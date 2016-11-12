@@ -1,0 +1,3 @@
+[submodule "subs/FAST"]
+	path = subs/FAST
+	url = https://github.com/NWTC/FAST
