@@ -71,6 +71,7 @@ typedef ^  DiscreteStateType   ReKi  TI_amb_filt       {:}    - -   "Time-filter
 typedef ^  DiscreteStateType   ReKi  D_rotor_filt      {:}    - -   "Time-filtered rotor diameter associated with each wake plane"     m
 typedef ^  DiscreteStateType   ReKi  Vx_rel_disk_filt   -     - -   "Time-filtered rotor-disk-averaged relative wind speed (ambient + deficits + motion), normal to disk"      m/s
 typedef ^  DiscreteStateType   ReKi  Ct_azavg_filt     {:}    - -   "Time-filtered azimuthally averaged thrust force coefficient (normal to disk), distributed radially"      -
+typedef ^  DiscreteStateType   ReKi  YawErr_filt       {:}    - -   "Time-filtered nacelle-yaw error at the wake planes"      rad
 
 # Define constraint states here:
 typedef   ^               ConstraintStateType ReKi     DummyConstrState - - - "Remove this variable if you have constraint states" -
@@ -101,6 +102,10 @@ typedef ^ ParameterType  IntKi            NumRadii       -  - -   "Number of rad
 typedef ^ ParameterType  ReKi             dr             -  - -   "Radial increment of radial finite-difference grid"      m
 typedef ^ ParameterType  ReKi             r             {:} - -   "Discretization of radial finite-difference grid"        m
 typedef ^ ParameterType  ReKi             filtParam      -  - -   "Low-pass time-filter parameter, with a value between 0 (minimum filtering) and 1 (maximum filtering) (exclusive)"      -
+typedef ^ ParameterType  ReKi             C_HWkDfl_O     -  - -   "Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor" m
+typedef ^ ParameterType  ReKi             C_HWkDfl_OY    -  - -   "Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor scaled with yaw error" m/rad
+typedef ^ ParameterType  ReKi             C_HWkDfl_x     -  - -   "Calibrated parameter in the correction for wake deflection defining the horizontal offset scaled with downstream distance" -
+typedef ^ ParameterType  ReKi             C_HWkDfl_xY    -  - -   "Calibrated parameter in the correction for wake deflection defining the horizontal offset scaled with downstream distance and yaw error" 1/rad
 typedef ^ ParameterType  ReKi             C_NearWake     -  - -   "Calibrated parameter for near-wake correction" -
 typedef ^ ParameterType  ReKi             C_vAmb_DMin    -  - -   "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the minimum and exponential regions"      -
 typedef ^ ParameterType  ReKi             C_vAmb_DMax    -  - -   "Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the exponential and maximum regions"      -
@@ -131,6 +136,7 @@ typedef      ^      InputType          ReKi       TI_amb                -      -
 typedef      ^      InputType          ReKi       D_rotor               -      -      -      "Rotor diameter"      m
 typedef      ^      InputType          ReKi       Vx_rel_disk           -      -      -      "Rotor-disk-averaged relative wind speed (ambient + deficits + motion), normal to disk"      m/s
 typedef      ^      InputType          ReKi       Ct_azavg             {:}     -      -      "Azimuthally averaged thrust force coefficient (normal to disk), distributed radially"      -
+typedef      ^      InputType          ReKi       YawErr                -      -      -      "Nacelle-yaw error at the wake planes"      rad
 
 
 # ..... Outputs ...................................................................................................................

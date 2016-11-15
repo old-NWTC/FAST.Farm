@@ -1,0 +1,44 @@
+FAST.Farm v1.00.* INPUT FILE
+Sample FAST.Farm input file
+--- SIMULATION CONTROL ---
+False              Echo               Echo input data to <RootName>.ech? (flag)
+FATAL              AbortLevel         Error level when simulation should abort (string) {"WARNING", "SEVERE", "FATAL"}
+600.0              TMax               Total run time (s) [>=0.0]
+--- AMBIENT WIND ---
+"ABLSolver"        WindFileRoot       Root name of wind data files from ABLSolver precursor (string)
+--- WIND TURBINES ---
+1                  NumTurbines        Number of wind turbines (-) [>=1]
+WT_X  WT_Y  WT_Z  WT_FASTInFile
+(m)   (m)   (m)   (string)
+0.0   0.0   0.0   "Test18.fst"
+--- WAKE DYNAMICS ---
+5.0                dr                 Radial increment of radial finite-difference grid (m) [>0.0]
+60                 NumRadii           Number of radii in the radial finite-difference grid (-) [>=2]
+500                NumPlanes          Number of wake planes (-) [>=2]
+DEFAULT            f_c                Cut-off frequency of the low-pass time-filter for the wake advection, deflection, and meandering model (Hz) [>0.0] or DEFAULT [DEFAULT=0.0333333]
+DEFAULT            C_NearWake         Calibrated parameter for near-wake correction (-) [>-1.0] or DEFAULT [DEFAULT=2.0]
+DEFAULT            k_vAmb             Calibrated parameter for the influence of ambient turbulence in the eddy viscosity (-) [>=0.0] or DEFAULT [DEFAULT=0.07  ]
+DEFAULT            k_vShr             Calibrated parameter for the influence of the shear layer    in the eddy viscosity (-) [>=0.0] or DEFAULT [DEFAULT=0.0178]
+DEFAULT            C_vAmb_DMin        Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the minimum and exponential regions (-) [>=0.0          ] or DEFAULT [DEFAULT=0.0  ]
+DEFAULT            C_vAmb_DMax        Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the exponential and maximum regions (-) [> C_vAmb_DMin  ] or DEFAULT [DEFAULT=2.0  ]
+DEFAULT            C_vAmb_FMin        Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the value in the minimum region                                                (-) [>=0.0 and <=1.0] or DEFAULT [DEFAULT=0.0  ]
+DEFAULT            C_vAmb_Exp         Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the exponent in the exponential region                                         (-) [> 0.0          ] or DEFAULT [DEFAULT=1.0  ]
+DEFAULT            C_vShr_DMin        Calibrated parameter in the eddy viscosity filter function for the shear layer    defining the transitional diameter fraction between the minimum and exponential regions (-) [>=0.0          ] or DEFAULT [DEFAULT=2.0  ]
+DEFAULT            C_vShr_DMax        Calibrated parameter in the eddy viscosity filter function for the shear layer    defining the transitional diameter fraction between the exponential and maximum regions (-) [> C_vShr_DMin  ] or DEFAULT [DEFAULT=11.0 ]
+DEFAULT            C_vShr_FMin        Calibrated parameter in the eddy viscosity filter function for the shear layer    defining the value in the minimum region                                                (-) [>=0.0 and <=1.0] or DEFAULT [DEFAULT=0.035]
+DEFAULT            C_vShr_Exp         Calibrated parameter in the eddy viscosity filter function for the shear layer    defining the exponent in the exponential region                                         (-) [> 0.0          ] or DEFAULT [DEFAULT=0.4  ]
+DEFAULT            Mod_WakeDiam       Wake diameter calculation model (-) (switch) {1: rotor diameter, 2: velocity-based, 3: momentum-based} or DEFAULT [DEFAULT=1]
+DEFAULT            C_WakeDiam         Calibrated parameter for wake diameter calculation (-) [>0.0 and <1.0] or DEFAULT [DEFAULT=0.95] [unused for Mod_WakeDiam=1]
+--- OUTPUT ---
+99999              ChkptTime          Amount of time between creating checkpoint files for potential restart (s) [>0.0]
+0                  TStart             Time to begin tabular output (s) [>=0.0]
+1                  OutFileFmt         Format for tabular (time-marching) output file (switch) {1: text file [<RootName>.out], 2: binary file [<RootName>.outb], 3: both}
+False              TabDelim           Use tab delimiters in text tabular output file? (flag) {uses spaces if False}
+"ES10.3E2"         OutFmt             Format used for text tabular output, excluding the time channel.  Resulting field should be 10 characters. (quoted string)
+                   OutList            The next line(s) contains a list of output parameters.  See OutListParameters.xlsx for a listing of available output channels (quoted string)
+
+
+
+
+
+

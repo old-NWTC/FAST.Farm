@@ -92,6 +92,7 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: D_rotor_filt      !< Time-filtered rotor diameter associated with each wake plane [m]
     REAL(ReKi)  :: Vx_rel_disk_filt      !< Time-filtered rotor-disk-averaged relative wind speed (ambient + deficits + motion), normal to disk [m/s]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: Ct_azavg_filt      !< Time-filtered azimuthally averaged thrust force coefficient (normal to disk), distributed radially [-]
+    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: YawErr_filt      !< Time-filtered nacelle-yaw error at the wake planes [rad]
   END TYPE WD_DiscreteStateType
 ! =======================
 ! =========  WD_ConstraintStateType  =======
@@ -117,6 +118,10 @@ IMPLICIT NONE
     REAL(ReKi)  :: dr      !< Radial increment of radial finite-difference grid [m]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: r      !< Discretization of radial finite-difference grid [m]
     REAL(ReKi)  :: filtParam      !< Low-pass time-filter parameter, with a value between 0 (minimum filtering) and 1 (maximum filtering) (exclusive) [-]
+    REAL(ReKi)  :: C_HWkDfl_O      !< Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor [m]
+    REAL(ReKi)  :: C_HWkDfl_OY      !< Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor scaled with yaw error [m/rad]
+    REAL(ReKi)  :: C_HWkDfl_x      !< Calibrated parameter in the correction for wake deflection defining the horizontal offset scaled with downstream distance [-]
+    REAL(ReKi)  :: C_HWkDfl_xY      !< Calibrated parameter in the correction for wake deflection defining the horizontal offset scaled with downstream distance and yaw error [1/rad]
     REAL(ReKi)  :: C_NearWake      !< Calibrated parameter for near-wake correction [-]
     REAL(ReKi)  :: C_vAmb_DMin      !< Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the minimum and exponential regions [-]
     REAL(ReKi)  :: C_vAmb_DMax      !< Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the exponential and maximum regions [-]
@@ -145,6 +150,7 @@ IMPLICIT NONE
     REAL(ReKi)  :: D_rotor      !< Rotor diameter [m]
     REAL(ReKi)  :: Vx_rel_disk      !< Rotor-disk-averaged relative wind speed (ambient + deficits + motion), normal to disk [m/s]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: Ct_azavg      !< Azimuthally averaged thrust force coefficient (normal to disk), distributed radially [-]
+    REAL(ReKi)  :: YawErr      !< Nacelle-yaw error at the wake planes [rad]
   END TYPE WD_InputType
 ! =======================
 ! =========  WD_OutputType  =======
@@ -1246,6 +1252,18 @@ IF (ALLOCATED(SrcDiscStateData%Ct_azavg_filt)) THEN
   END IF
     DstDiscStateData%Ct_azavg_filt = SrcDiscStateData%Ct_azavg_filt
 ENDIF
+IF (ALLOCATED(SrcDiscStateData%YawErr_filt)) THEN
+  i1_l = LBOUND(SrcDiscStateData%YawErr_filt,1)
+  i1_u = UBOUND(SrcDiscStateData%YawErr_filt,1)
+  IF (.NOT. ALLOCATED(DstDiscStateData%YawErr_filt)) THEN 
+    ALLOCATE(DstDiscStateData%YawErr_filt(i1_l:i1_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstDiscStateData%YawErr_filt.', ErrStat, ErrMsg,RoutineName)
+      RETURN
+    END IF
+  END IF
+    DstDiscStateData%YawErr_filt = SrcDiscStateData%YawErr_filt
+ENDIF
  END SUBROUTINE WD_CopyDiscState
 
  SUBROUTINE WD_DestroyDiscState( DiscStateData, ErrStat, ErrMsg )
@@ -1283,6 +1301,9 @@ IF (ALLOCATED(DiscStateData%D_rotor_filt)) THEN
 ENDIF
 IF (ALLOCATED(DiscStateData%Ct_azavg_filt)) THEN
   DEALLOCATE(DiscStateData%Ct_azavg_filt)
+ENDIF
+IF (ALLOCATED(DiscStateData%YawErr_filt)) THEN
+  DEALLOCATE(DiscStateData%YawErr_filt)
 ENDIF
  END SUBROUTINE WD_DestroyDiscState
 
@@ -1366,6 +1387,11 @@ ENDIF
   IF ( ALLOCATED(InData%Ct_azavg_filt) ) THEN
     Int_BufSz   = Int_BufSz   + 2*1  ! Ct_azavg_filt upper/lower bounds for each dimension
       Re_BufSz   = Re_BufSz   + SIZE(InData%Ct_azavg_filt)  ! Ct_azavg_filt
+  END IF
+  Int_BufSz   = Int_BufSz   + 1     ! YawErr_filt allocated yes/no
+  IF ( ALLOCATED(InData%YawErr_filt) ) THEN
+    Int_BufSz   = Int_BufSz   + 2*1  ! YawErr_filt upper/lower bounds for each dimension
+      Re_BufSz   = Re_BufSz   + SIZE(InData%YawErr_filt)  ! YawErr_filt
   END IF
   IF ( Re_BufSz  .GT. 0 ) THEN 
      ALLOCATE( ReKiBuf(  Re_BufSz  ), STAT=ErrStat2 )
@@ -1524,6 +1550,19 @@ ENDIF
 
       IF (SIZE(InData%Ct_azavg_filt)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%Ct_azavg_filt))-1 ) = PACK(InData%Ct_azavg_filt,.TRUE.)
       Re_Xferred   = Re_Xferred   + SIZE(InData%Ct_azavg_filt)
+  END IF
+  IF ( .NOT. ALLOCATED(InData%YawErr_filt) ) THEN
+    IntKiBuf( Int_Xferred ) = 0
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    IntKiBuf( Int_Xferred ) = 1
+    Int_Xferred = Int_Xferred + 1
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%YawErr_filt,1)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%YawErr_filt,1)
+    Int_Xferred = Int_Xferred + 2
+
+      IF (SIZE(InData%YawErr_filt)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%YawErr_filt))-1 ) = PACK(InData%YawErr_filt,.TRUE.)
+      Re_Xferred   = Re_Xferred   + SIZE(InData%YawErr_filt)
   END IF
  END SUBROUTINE WD_PackDiscState
 
@@ -1780,6 +1819,29 @@ ENDIF
     mask1 = .TRUE. 
       IF (SIZE(OutData%Ct_azavg_filt)>0) OutData%Ct_azavg_filt = UNPACK(ReKiBuf( Re_Xferred:Re_Xferred+(SIZE(OutData%Ct_azavg_filt))-1 ), mask1, 0.0_ReKi )
       Re_Xferred   = Re_Xferred   + SIZE(OutData%Ct_azavg_filt)
+    DEALLOCATE(mask1)
+  END IF
+  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! YawErr_filt not allocated
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    Int_Xferred = Int_Xferred + 1
+    i1_l = IntKiBuf( Int_Xferred    )
+    i1_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    IF (ALLOCATED(OutData%YawErr_filt)) DEALLOCATE(OutData%YawErr_filt)
+    ALLOCATE(OutData%YawErr_filt(i1_l:i1_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%YawErr_filt.', ErrStat, ErrMsg,RoutineName)
+       RETURN
+    END IF
+    ALLOCATE(mask1(i1_l:i1_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating mask1.', ErrStat, ErrMsg,RoutineName)
+       RETURN
+    END IF
+    mask1 = .TRUE. 
+      IF (SIZE(OutData%YawErr_filt)>0) OutData%YawErr_filt = UNPACK(ReKiBuf( Re_Xferred:Re_Xferred+(SIZE(OutData%YawErr_filt))-1 ), mask1, 0.0_ReKi )
+      Re_Xferred   = Re_Xferred   + SIZE(OutData%YawErr_filt)
     DEALLOCATE(mask1)
   END IF
  END SUBROUTINE WD_UnPackDiscState
@@ -2209,6 +2271,10 @@ IF (ALLOCATED(SrcParamData%r)) THEN
     DstParamData%r = SrcParamData%r
 ENDIF
     DstParamData%filtParam = SrcParamData%filtParam
+    DstParamData%C_HWkDfl_O = SrcParamData%C_HWkDfl_O
+    DstParamData%C_HWkDfl_OY = SrcParamData%C_HWkDfl_OY
+    DstParamData%C_HWkDfl_x = SrcParamData%C_HWkDfl_x
+    DstParamData%C_HWkDfl_xY = SrcParamData%C_HWkDfl_xY
     DstParamData%C_NearWake = SrcParamData%C_NearWake
     DstParamData%C_vAmb_DMin = SrcParamData%C_vAmb_DMin
     DstParamData%C_vAmb_DMax = SrcParamData%C_vAmb_DMax
@@ -2307,6 +2373,10 @@ ENDIF
       Re_BufSz   = Re_BufSz   + SIZE(InData%r)  ! r
   END IF
       Re_BufSz   = Re_BufSz   + 1  ! filtParam
+      Re_BufSz   = Re_BufSz   + 1  ! C_HWkDfl_O
+      Re_BufSz   = Re_BufSz   + 1  ! C_HWkDfl_OY
+      Re_BufSz   = Re_BufSz   + 1  ! C_HWkDfl_x
+      Re_BufSz   = Re_BufSz   + 1  ! C_HWkDfl_xY
       Re_BufSz   = Re_BufSz   + 1  ! C_NearWake
       Re_BufSz   = Re_BufSz   + 1  ! C_vAmb_DMin
       Re_BufSz   = Re_BufSz   + 1  ! C_vAmb_DMax
@@ -2395,6 +2465,14 @@ ENDIF
       Re_Xferred   = Re_Xferred   + SIZE(InData%r)
   END IF
       ReKiBuf ( Re_Xferred:Re_Xferred+(1)-1 ) = InData%filtParam
+      Re_Xferred   = Re_Xferred   + 1
+      ReKiBuf ( Re_Xferred:Re_Xferred+(1)-1 ) = InData%C_HWkDfl_O
+      Re_Xferred   = Re_Xferred   + 1
+      ReKiBuf ( Re_Xferred:Re_Xferred+(1)-1 ) = InData%C_HWkDfl_OY
+      Re_Xferred   = Re_Xferred   + 1
+      ReKiBuf ( Re_Xferred:Re_Xferred+(1)-1 ) = InData%C_HWkDfl_x
+      Re_Xferred   = Re_Xferred   + 1
+      ReKiBuf ( Re_Xferred:Re_Xferred+(1)-1 ) = InData%C_HWkDfl_xY
       Re_Xferred   = Re_Xferred   + 1
       ReKiBuf ( Re_Xferred:Re_Xferred+(1)-1 ) = InData%C_NearWake
       Re_Xferred   = Re_Xferred   + 1
@@ -2537,6 +2615,14 @@ ENDIF
   END IF
       OutData%filtParam = ReKiBuf( Re_Xferred )
       Re_Xferred   = Re_Xferred + 1
+      OutData%C_HWkDfl_O = ReKiBuf( Re_Xferred )
+      Re_Xferred   = Re_Xferred + 1
+      OutData%C_HWkDfl_OY = ReKiBuf( Re_Xferred )
+      Re_Xferred   = Re_Xferred + 1
+      OutData%C_HWkDfl_x = ReKiBuf( Re_Xferred )
+      Re_Xferred   = Re_Xferred + 1
+      OutData%C_HWkDfl_xY = ReKiBuf( Re_Xferred )
+      Re_Xferred   = Re_Xferred + 1
       OutData%C_NearWake = ReKiBuf( Re_Xferred )
       Re_Xferred   = Re_Xferred + 1
       OutData%C_vAmb_DMin = ReKiBuf( Re_Xferred )
@@ -2675,6 +2761,7 @@ IF (ALLOCATED(SrcInputData%Ct_azavg)) THEN
   END IF
     DstInputData%Ct_azavg = SrcInputData%Ct_azavg
 ENDIF
+    DstInputData%YawErr = SrcInputData%YawErr
  END SUBROUTINE WD_CopyInput
 
  SUBROUTINE WD_DestroyInput( InputData, ErrStat, ErrMsg )
@@ -2745,6 +2832,7 @@ ENDIF
     Int_BufSz   = Int_BufSz   + 2*1  ! Ct_azavg upper/lower bounds for each dimension
       Re_BufSz   = Re_BufSz   + SIZE(InData%Ct_azavg)  ! Ct_azavg
   END IF
+      Re_BufSz   = Re_BufSz   + 1  ! YawErr
   IF ( Re_BufSz  .GT. 0 ) THEN 
      ALLOCATE( ReKiBuf(  Re_BufSz  ), STAT=ErrStat2 )
      IF (ErrStat2 /= 0) THEN 
@@ -2813,6 +2901,8 @@ ENDIF
       IF (SIZE(InData%Ct_azavg)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%Ct_azavg))-1 ) = PACK(InData%Ct_azavg,.TRUE.)
       Re_Xferred   = Re_Xferred   + SIZE(InData%Ct_azavg)
   END IF
+      ReKiBuf ( Re_Xferred:Re_Xferred+(1)-1 ) = InData%YawErr
+      Re_Xferred   = Re_Xferred   + 1
  END SUBROUTINE WD_PackInput
 
  SUBROUTINE WD_UnPackInput( ReKiBuf, DbKiBuf, IntKiBuf, Outdata, ErrStat, ErrMsg )
@@ -2928,6 +3018,8 @@ ENDIF
       Re_Xferred   = Re_Xferred   + SIZE(OutData%Ct_azavg)
     DEALLOCATE(mask1)
   END IF
+      OutData%YawErr = ReKiBuf( Re_Xferred )
+      Re_Xferred   = Re_Xferred + 1
  END SUBROUTINE WD_UnPackInput
 
  SUBROUTINE WD_CopyOutput( SrcOutputData, DstOutputData, CtrlCode, ErrStat, ErrMsg )
@@ -3502,6 +3594,8 @@ IF (ALLOCATED(u_out%Ct_azavg) .AND. ALLOCATED(u1%Ct_azavg)) THEN
   DEALLOCATE(b1)
   DEALLOCATE(c1)
 END IF ! check if allocated
+  b0 = -(u1%YawErr - u2%YawErr)/t(2)
+  u_out%YawErr = u1%YawErr + b0 * t_out
  END SUBROUTINE WD_Input_ExtrapInterp1
 
 
@@ -3602,6 +3696,9 @@ IF (ALLOCATED(u_out%Ct_azavg) .AND. ALLOCATED(u1%Ct_azavg)) THEN
   DEALLOCATE(b1)
   DEALLOCATE(c1)
 END IF ! check if allocated
+  b0 = (t(3)**2*(u1%YawErr - u2%YawErr) + t(2)**2*(-u1%YawErr + u3%YawErr))/(t(2)*t(3)*(t(2) - t(3)))
+  c0 = ( (t(2)-t(3))*u1%YawErr + t(3)*u2%YawErr - t(2)*u3%YawErr ) / (t(2)*t(3)*(t(2) - t(3)))
+  u_out%YawErr = u1%YawErr + b0 * t_out + c0 * t_out**2
  END SUBROUTINE WD_Input_ExtrapInterp2
 
 

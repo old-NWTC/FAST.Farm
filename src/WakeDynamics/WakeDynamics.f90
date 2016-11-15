@@ -925,6 +925,10 @@ subroutine WD_TEST_Init_BadData(errStat, errMsg)
    InitInp%InputFileData%NumRadii       = 0
    InitInp%InputFileData%dr             = 0.0_ReKi
    InitInp%InputFileData%f_c            = 0.0
+   InitInp%InputFileData%C_HWkDfl_O     = -2.9
+   InitInp%InputFileData%C_HWkDfl_OY    = -.24*D2R
+   InitInp%InputFileData%C_HWkDfl_x     = -0.0054
+   InitInp%InputFileData%C_HWkDfl_xY    = 0.00039*D2R
    InitInp%InputFileData%C_NearWake     = -1.001
    InitInp%InputFileData%C_vAmb_DMin    = -0.01
    InitInp%InputFileData%C_vAmb_DMax    = -3
@@ -955,6 +959,10 @@ subroutine WD_TEST_SetGoodInitInpData(interval, InitInp)
    InitInp%InputFileData%NumRadii       = 2
    InitInp%InputFileData%dr             = 0.1_ReKi
    InitInp%InputFileData%f_c            = 0.03333333333333
+   InitInp%InputFileData%C_HWkDfl_O     = -2.9
+   InitInp%InputFileData%C_HWkDfl_OY    = -.24*D2R
+   InitInp%InputFileData%C_HWkDfl_x     = -0.0054
+   InitInp%InputFileData%C_HWkDfl_xY    = 0.00039*D2R
    InitInp%InputFileData%C_NearWake     = 2
    InitInp%InputFileData%C_vAmb_DMin    = 0
    InitInp%InputFileData%C_vAmb_DMax    = 2
