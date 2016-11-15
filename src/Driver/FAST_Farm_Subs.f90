@@ -722,7 +722,7 @@ SUBROUTINE Farm_ValidateInput( p, WD_InitInp, ErrStat, ErrMsg )
    IF (WD_InitInp%NumRadii < 2) CALL SetErrStat(ErrID_Fatal,'NumRadii (number of radii) must be at least 2.',ErrStat,ErrMsg,RoutineName)
    IF (WD_InitInp%NumPlanes < 2) CALL SetErrStat(ErrID_Fatal,'NumPlanes (number of wake planes) must be at least 2.',ErrStat,ErrMsg,RoutineName)
 
-   IF (WD_InitInp%f_c < 2) CALL SetErrStat(ErrID_Fatal,'f_c (cut-off frequency) must be more than 0 Hz.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%f_c <= 0.0_ReKi) CALL SetErrStat(ErrID_Fatal,'f_c (cut-off frequency) must be more than 0 Hz.',ErrStat,ErrMsg,RoutineName)
    IF (WD_InitInp%C_NearWake <= -1.0_Reki) CALL SetErrStat(ErrID_Fatal,'C_NearWake parameter must be more than -1.',ErrStat,ErrMsg,RoutineName)
    IF (WD_InitInp%k_vAmb < 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'k_vAmb parameter must not be negative.',ErrStat,ErrMsg,RoutineName)
    IF (WD_InitInp%k_vShr < 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'k_vShr parameter must not be negative.',ErrStat,ErrMsg,RoutineName)
