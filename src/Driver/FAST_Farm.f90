@@ -39,12 +39,17 @@ INTEGER(IntKi)                        :: ErrStat                                
 CHARACTER(ErrMsgLen)                  :: ErrMsg                                  ! Error message
 
    ! data for restart:
+CHARACTER(1024)                       :: InputFileName                           ! Rootname of the checkpoint file
 CHARACTER(1024)                       :: CheckpointRoot                          ! Rootname of the checkpoint file
 CHARACTER(20)                         :: FlagArg                                 ! flag argument from command line
 INTEGER(IntKi)                        :: Restart_step                            ! step to start on (for restart) 
 
- type(farm_parametertype)             :: p  
-   
+! these should probably go in the FAST.Farm registry:
+type(farm_parametertype)              :: p  
+TYPE(FAST_TurbineType), allocatable   :: Turbine(:)                    ! Data for each turbine instance
+logical                               :: IsInitialized    
+TYPE(FAST_ExternInitType)             :: ExternInitData
+ 
 !Note: Multiple entries in the same row implies that the operations can be done in parallel
 !FAST.Farm Driver
 !     Initialization:
@@ -83,44 +88,66 @@ INTEGER(IntKi)                        :: Restart_step                           
 !        Close Output File   
    
 
-   CALL NWTC_Init() ! open console for writing
+      ! Init NWTC_Library, display copyright and version information:
+   CALL FAST_ProgStart( Farm_Ver )
+
+   p%NumTurbines = 0
+   IsInitialized = .false.
    
-   
-   ProgName = 'FAST.Farm'
-   CheckpointRoot = ""
-   CALL CheckArgs( CheckpointRoot, ErrStat, Flag=FlagArg )  ! if ErrStat /= ErrID_None, we'll ignore and deal with the problem when we try to read the input file
+   InputFileName = "" ! make sure we don't think this is a "default" inputFileName if not specified on command line
+   CALL CheckArgs( InputFileName, ErrStat, Flag=FlagArg )  ! if ErrStat /= ErrID_None, we'll ignore and deal with the problem when we try to read the input file
       
    IF ( TRIM(FlagArg) == 'RESTART' ) THEN ! Restart from checkpoint file
+      CheckpointRoot = InputFileName
    !   CALL FAST_RestoreFromCheckpoint_Tary(t_initial, Restart_step, Turbine, CheckpointRoot, ErrStat, ErrMsg  )
    !      CALL CheckError( ErrStat, ErrMsg, 'during restore from checkpoint'  )           
    !   
    ELSE
       Restart_step = 0
       
-      call Farm_Initialize( p, ErrStat, ErrMsg )
+      call Farm_Initialize( p, InputFileName, ErrStat, ErrMsg )
+         CALL CheckError( ErrStat, ErrMsg, 'during driver initialization' )
       
       
-   !   
-   !   DO i_turb = 1,NumTurbines
-   !      !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !      ! initialization
-   !      !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !      
-   !      CALL FAST_InitializeAll_T( t_initial, i_turb, Turbine(i_turb), ErrStat, ErrMsg )     ! bjj: we need to get the input files for each turbine (not necessarially the same one)
-   !      CALL CheckError( ErrStat, ErrMsg, 'during module initialization' )
-   !                     
-   !   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !   ! loose coupling
-   !   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !   
-   !      !...............................................................................................................................
-   !      ! Initialization: (calculate outputs based on states at t=t_initial as well as guesses of inputs and constraint states)
-   !      !...............................................................................................................................     
-   !      CALL FAST_Solution0_T( Turbine(i_turb), ErrStat, ErrMsg )
-   !      CALL CheckError( ErrStat, ErrMsg, 'during simulation initialization'  )
-   !   
-   !               
-   !   END DO
+      ALLOCATE(Turbine(p%NumTurbines),STAT=ErrStat)
+         if (ErrStat /= 0) CALL CheckError( ErrID_Fatal, 'Could not allocate memory for FAST data', 'during driver initialization' )
+            
+      
+      !.................
+      ! Initialize each instance of FAST
+      !................
+      ExternInitData%Tmax = p%TMax
+      ExternInitData%SensorType = SensorType_None
+      ExternInitData%LidRadialVel = .false.
+      ExternInitData%NumSC2Ctrl = 0 ! "number of controller inputs [from supercontroller]"
+      ExternInitData%NumCtrl2SC = 0 ! "number of controller outputs [to supercontroller]"
+      
+      DO i_turb = 1,p%NumTurbines
+         !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+         ! initialization
+         !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+         ExternInitData%TurbineID = i_turb
+         ExternInitData%TurbinePos = p%WT_Position(:,i_turb)
+                  
+         CALL FAST_InitializeAll_T( t_initial, i_turb, Turbine(i_turb), ErrStat, ErrMsg, p%WT_FASTInFile(i_turb) )     ! bjj: we need to get the input files for each turbine (not necessarially the same one)
+IsInitialized = .true.
+         CALL CheckError( ErrStat, ErrMsg, 'during module initialization' )
+
+!bjj: this will overwrite ProgName (in case of errors, this would say we're running FAST, not FAST.Farm)
+         
+      !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      ! loose coupling
+      !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      
+         !...............................................................................................................................
+         ! Initialization: (calculate outputs based on states at t=t_initial as well as guesses of inputs and constraint states)
+         !...............................................................................................................................     
+         CALL FAST_Solution0_T( Turbine(i_turb), ErrStat, ErrMsg )
+         CALL CheckError( ErrStat, ErrMsg, 'during simulation initialization'  )
+      
+!make sure they all have the same time step!!!
+         
+      END DO
    END IF
    !
    !
@@ -166,51 +193,66 @@ INTEGER(IntKi)                        :: Restart_step                           
    !END DO ! n_t_global
    !
    !
-   !!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !!  Write simulation times and stop
-   !!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !
-   !DO i_turb = 1,NumTurbines
-   !   CALL ExitThisProgram_T( Turbine(i_turb), ErrID_None, i_turb==NumTurbines )
-   !END DO
+   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   !  Write simulation times and stop
+   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    
-!
-!CONTAINS
-!   !...............................................................................................................................
-!   SUBROUTINE CheckError(ErrID,Msg,ErrLocMsg)
-!   ! This subroutine sets the error message and level and cleans up if the error is >= AbortErrLev
-!   !...............................................................................................................................
-!
-!         ! Passed arguments
-!      INTEGER(IntKi), INTENT(IN)           :: ErrID       ! The error identifier (ErrStat)
-!      CHARACTER(*),   INTENT(IN)           :: Msg         ! The error message (ErrMsg)
-!      CHARACTER(*),   INTENT(IN), OPTIONAL :: ErrLocMsg   ! an optional message describing the location of the error
-!
-!      CHARACTER(1024)                      :: SimMsg      
-!      integer(IntKi)                       :: i_turb2
-!      
-!      
-!      IF ( ErrID /= ErrID_None ) THEN
-!         CALL WrScr( NewLine//TRIM(Msg)//NewLine )
-!         IF ( ErrID >= AbortErrLev ) THEN
-!            
-!            IF (PRESENT(ErrLocMsg)) THEN
-!               SimMsg = ErrLocMsg
-!            ELSE
-!               SimMsg = 'at simulation time '//TRIM(Num2LStr(Turbine(1)%m_FAST%t_global))//' of '//TRIM(Num2LStr(Turbine(1)%p_FAST%TMax))//' seconds'
-!            END IF
-!            
-!            DO i_turb2 = 1,NumTurbines
-!               CALL ExitThisProgram_T( Turbine(i_turb2), ErrID, i_turb2==NumTurbines, SimMsg )
-!            END DO
-!                        
-!         END IF
-!         
-!      END IF
-!
-!
-!   END SUBROUTINE CheckError   
-!   !............................................................................................................................... 
+   DO i_turb = 1,p%NumTurbines
+      CALL ExitThisProgram_T( Turbine(i_turb), ErrID_None, .false. )
+   END DO
    
+   call Cleanup()
+   call NormStop()
+   
+CONTAINS
+   !...............................................................................................................................
+   SUBROUTINE CheckError(ErrID,Msg,ErrLocMsg)
+   ! This subroutine sets the error message and level and cleans up if the error is >= AbortErrLev
+   !...............................................................................................................................
+
+         ! Passed arguments
+      INTEGER(IntKi), INTENT(IN)           :: ErrID       ! The error identifier (ErrStat)
+      CHARACTER(*),   INTENT(IN)           :: Msg         ! The error message (ErrMsg)
+      CHARACTER(*),   INTENT(IN), OPTIONAL :: ErrLocMsg   ! an optional message describing the location of the error
+
+      CHARACTER(1024)                      :: SimMsg      
+      integer(IntKi)                       :: i_turb2
+      
+      
+      IF ( ErrID /= ErrID_None ) THEN
+         CALL WrScr( NewLine//TRIM(Msg)//NewLine )
+         IF ( ErrID >= AbortErrLev ) THEN
+            
+            IF (PRESENT(ErrLocMsg)) THEN
+               SimMsg = ErrLocMsg
+            ELSE
+               ! make sure Turbine() is allocated!
+               SimMsg = 'at simulation time '//TRIM(Num2LStr(Turbine(1)%m_FAST%t_global))//' of '//TRIM(Num2LStr(Turbine(1)%p_FAST%TMax))//' seconds'
+            END IF
+            
+            if (IsInitialized) then
+               DO i_turb2 = 1,p%NumTurbines
+   !make sure we've initialized FAST before calling exit this program!!!!               
+                     ! destroy any allocated arrays and/or pointers
+                  CALL ExitThisProgram_T( Turbine(i_turb2), ErrID, .false., SimMsg ) 
+               END DO
+            end if
+            
+                        
+            call Cleanup()
+            call ProgAbort('', TrapErrors=.FALSE., TimeWait=3._ReKi )
+            
+         END IF
+         
+      END IF
+
+
+   END SUBROUTINE CheckError   
+   !............................................................................................................................... 
+   SUBROUTINE Cleanup()
+   
+      if (allocated(Turbine)) deallocate(Turbine)
+      
+   END SUBROUTINE Cleanup
 END PROGRAM FAST_Farm
 !**********************************************************************************************************************************

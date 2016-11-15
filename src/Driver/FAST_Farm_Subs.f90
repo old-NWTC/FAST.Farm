@@ -28,6 +28,7 @@ MODULE FAST_Farm_Subs
    USE FAST_Farm_Types
    USE NWTC_Library
    USE WakeDynamics_Types
+   USE FAST_Subs
 
    IMPLICIT NONE
 
@@ -38,19 +39,18 @@ MODULE FAST_Farm_Subs
 
 !----------------------------------------------------------------------------------------------------------------------------------
 !> Routine to call Init routine for each module. This routine sets all of the init input data for each module.
-SUBROUTINE Farm_Initialize( p, ErrStat, ErrMsg, InFile )
+SUBROUTINE Farm_Initialize( p, InputFile, ErrStat, ErrMsg )
 
    TYPE(Farm_ParameterType), INTENT(INOUT) :: p                   !< FAST.Farm driver parameters   
       
    INTEGER(IntKi),           INTENT(  OUT) :: ErrStat             !< Error status of the operation
    CHARACTER(*),             INTENT(  OUT) :: ErrMsg              !< Error message if ErrStat /= ErrID_None
-   CHARACTER(*), OPTIONAL,   INTENT(IN   ) :: InFile              !< A CHARACTER string containing the name of the primary FAST input file (if not present, we'll get it from the command line)
+   CHARACTER(*),             INTENT(IN   ) :: InputFile           !< A CHARACTER string containing the name of the primary FAST.Farm input file
    
    
    ! local variables      
    INTEGER(IntKi)                          :: ErrStat2   
    CHARACTER(ErrMsgLen)                    :: ErrMsg2
-   CHARACTER(1024)                         :: InputFile           ! A CHARACTER string containing the name of the primary FAST input file
    TYPE(WD_InitInputType)                  :: WD_InitInput        ! init-input data for WakeDynamics module
    
    CHARACTER(*), PARAMETER                 :: RoutineName = 'Farm_Initialize'       
@@ -61,34 +61,18 @@ SUBROUTINE Farm_Initialize( p, ErrStat, ErrMsg, InFile )
    ErrMsg  = ""         
    AbortErrLev            = ErrID_Fatal                                 ! Until we read otherwise from the FAST input file, we abort only on FATAL errors
    !m_FAST%t_global        = t_initial - 20.                             ! initialize this to a number < t_initial for error message in ProgAbort  
-   
-      ! ... Initialize NWTC Library (open console, set pi constants) ...
-   CALL NWTC_Init( ProgNameIN=Farm_ver%Name, EchoLibVer=.FALSE. )       ! sets the pi constants, open console for output, etc...
       
-      ! Display the copyright notice
-   CALL DispCopyrightLicense( Farm_ver )
-
-      ! Tell our users what they're running
-   CALL WrScr( ' Running '//TRIM(GetNVD(Farm_Ver))//NewLine//' linked with '//TRIM( GetNVD( NWTC_Ver ))//NewLine )
-   
    
       ! ... Open and read input files, initialize global parameters. ...
-   IF ( PRESENT(InFile) ) THEN
-      InputFile = InFile
-   ELSE ! get it from the command line
-      InputFile = ""  ! initialize to empty string to make sure it's input from the command line
-      CALL CheckArgs( InputFile, ErrStat2 )  ! if ErrStat2 /= ErrID_None, we'll ignore and deal with the problem when we try to read the input file
       
-      IF (LEN_TRIM(InputFile) == 0) THEN ! no input file was specified
-         CALL SetErrStat( ErrID_Fatal, 'The required input file was not specified on the command line.', ErrStat, ErrMsg, RoutineName )
+   IF (LEN_TRIM(InputFile) == 0) THEN ! no input file was specified
+      CALL SetErrStat( ErrID_Fatal, 'The required input file was not specified on the command line.', ErrStat, ErrMsg, RoutineName )
 
-         CALL NWTC_DisplaySyntax( InputFile, 'FAST.Farm.exe' )
+      CALL NWTC_DisplaySyntax( InputFile, 'FAST.Farm.exe' )
          
-         RETURN
-      END IF            
-                  
-   END IF
-      
+      RETURN
+   END IF            
+                        
 
       ! Determine the root name of the primary file (will be used for output files)
    CALL GetRoot( InputFile, p%OutFileRoot )      
@@ -722,7 +706,7 @@ SUBROUTINE Farm_ValidateInput( p, WD_InitInp, ErrStat, ErrMsg )
    IF (WD_InitInp%NumRadii < 2) CALL SetErrStat(ErrID_Fatal,'NumRadii (number of radii) must be at least 2.',ErrStat,ErrMsg,RoutineName)
    IF (WD_InitInp%NumPlanes < 2) CALL SetErrStat(ErrID_Fatal,'NumPlanes (number of wake planes) must be at least 2.',ErrStat,ErrMsg,RoutineName)
 
-   IF (WD_InitInp%f_c < 2) CALL SetErrStat(ErrID_Fatal,'f_c (cut-off frequency) must be more than 0 Hz.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%f_c <= 0.0_ReKi) CALL SetErrStat(ErrID_Fatal,'f_c (cut-off frequency) must be more than 0 Hz.',ErrStat,ErrMsg,RoutineName)
    IF (WD_InitInp%C_NearWake <= -1.0_Reki) CALL SetErrStat(ErrID_Fatal,'C_NearWake parameter must be more than -1.',ErrStat,ErrMsg,RoutineName)
    IF (WD_InitInp%k_vAmb < 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'k_vAmb parameter must not be negative.',ErrStat,ErrMsg,RoutineName)
    IF (WD_InitInp%k_vShr < 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'k_vShr parameter must not be negative.',ErrStat,ErrMsg,RoutineName)
