@@ -21,7 +21,11 @@ REM -- IT is also NOT RECOMMENDED to use spaces in the path names!!!! ----------
 REM ----------------------------------------------------------------------------
 REM ----------------------------------------------------------------------------
 
-SET Root_Loc=..\..
+REM Note that Root_Loc is relative to the projects that **use** this batch file. Thus, it must 
+REM reflect one directory lower than the location of this batch file.
+SET Root_Loc=..\..\..
+
+
 SET Farm_Loc=%Root_Loc%\src
 
 SET Driver_Loc=%Farm_Loc%\Driver
@@ -48,9 +52,12 @@ GOTO checkError
 
 :WakeDynamics
 SET CURR_LOC=%Wake_Loc%
-%REGISTRY% "%CURR_LOC%\WakeDynamics_Registry.txt" -I %Wake_Loc% -noextrap -O "%CURR_LOC%"
+%REGISTRY% "%CURR_LOC%\WakeDynamics_Registry.txt" -I %NWTC_Lib_Loc% -noextrap -O "%CURR_LOC%"
 GOTO checkError
 
+:WakeDynamics_Driver
+SET CURR_LOC=%Wake_Loc%\driver
+%REGISTRY% "%CURR_LOC%\WakeDynamics_Driver_Registry.txt" -I %NWTC_Lib_Loc% -I %Wake_Loc% -noextrap -O %CURR_LOC% 
 
 :checkError
 ECHO.
