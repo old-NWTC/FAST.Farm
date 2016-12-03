@@ -29,6 +29,8 @@ MODULE FAST_Farm_Subs
    USE NWTC_Library
    USE WakeDynamics_Types
    USE FAST_Subs
+   USE FASTWrapper
+
 
    IMPLICIT NONE
 

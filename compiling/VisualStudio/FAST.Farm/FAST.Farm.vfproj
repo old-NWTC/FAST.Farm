@@ -46,10 +46,11 @@
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
 	<Files>
 		<Filter Name="Header Files" Filter="fi;fd;h;inc"/>
-		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
+		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe">
+		<File RelativePath="..\RunRegistry.bat"/></Filter>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<Filter Name="AmbientWind_ArrayEffects"/>
 		<Filter Name="Driver">
-		<Filter Name="SuperController"/>
 		<Filter Name="RegistryFiles">
 		<File RelativePath="..\..\..\src\Driver\FAST_Farm_Registry.txt">
 			<FileConfiguration Name="Debug|Win32">
@@ -61,9 +62,22 @@
 			<FileConfiguration Name="Release|Win32">
 				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat FarmDriver" Description="Running Registry for FAST.Farm Driver" Outputs="..\..\..\src\Driver\FAST_Farm_Types.f90"/></FileConfiguration></File>
 		<File RelativePath="..\..\..\src\Driver\FAST_Farm_Types.f90"/></Filter>
+		<Filter Name="SuperController"/>
 		<File RelativePath="..\..\..\src\Driver\FAST_Farm.f90"/>
 		<File RelativePath="..\..\..\src\Driver\FAST_Farm_Subs.f90"/></Filter>
-		<Filter Name="AmbientWind_ArrayEffects"/>
+		<Filter Name="FASTWrapper">
+		<Filter Name="RegistryFiles">
+		<File RelativePath="..\..\..\src\FASTWrapper\FASTWrapper_Registry.txt">
+			<FileConfiguration Name="Debug|Win32">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat FASTWrapper" Description="Running Registry for FASTWrapper" Outputs="..\..\..\src\FASTWrapper\FASTWrapper_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat FASTWrapper" Description="Running Registry for FASTWrapper" Outputs="..\..\..\src\FASTWrapper\FASTWrapper_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Debug|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat FASTWrapper" Description="Running Registry for FASTWrapper" Outputs="..\..\..\src\FASTWrapper\FASTWrapper_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release|Win32">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat FASTWrapper" Description="Running Registry for FASTWrapper" Outputs="..\..\..\src\FASTWrapper\FASTWrapper_Types.f90"/></FileConfiguration></File>
+		<File RelativePath="..\..\..\src\FASTWrapper\FASTWrapper_Types.f90"/></Filter>
+		<File RelativePath="..\..\..\src\FASTWrapper\FASTWrapper.f90"/></Filter>
 		<Filter Name="WakeDynamics">
 		<File RelativePath="..\..\..\src\WakeDynamics\WakeDynamics_Registry.txt">
 			<FileConfiguration Name="Debug|Win32">

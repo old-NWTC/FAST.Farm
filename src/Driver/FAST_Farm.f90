@@ -30,13 +30,13 @@ PROGRAM FAST_Farm
    IMPLICIT NONE
 
    ! Local parameters:
-REAL(DbKi),             PARAMETER     :: t_initial = 0.0_DbKi                    ! Initial time
    
    ! Other/Misc variables
 INTEGER(IntKi)                        :: i_turb                                  ! current turbine number
 INTEGER(IntKi)                        :: n_t_global                              ! simulation time step, loop counter for global simulation
 INTEGER(IntKi)                        :: ErrStat                                 ! Error status
 CHARACTER(ErrMsgLen)                  :: ErrMsg                                  ! Error message
+real(dbki)                            :: interval
 
    ! data for restart:
 CHARACTER(1024)                       :: InputFileName                           ! Rootname of the checkpoint file
@@ -45,11 +45,11 @@ CHARACTER(20)                         :: FlagArg                                
 INTEGER(IntKi)                        :: Restart_step                            ! step to start on (for restart) 
 
 ! these should probably go in the FAST.Farm registry:
-type(farm_parametertype)              :: p  
-TYPE(FAST_TurbineType), allocatable   :: Turbine(:)                    ! Data for each turbine instance
-logical                               :: IsInitialized    
-TYPE(FAST_ExternInitType)             :: ExternInitData
+type(All_FastFarm_Data)               :: farm  
  
+type(FWrap_InitInputType)             :: FWrap_InitInp
+type(FWrap_InitOutputType)            :: FWrap_InitOut
+
 !Note: Multiple entries in the same row implies that the operations can be done in parallel
 !FAST.Farm Driver
 !     Initialization:
@@ -91,8 +91,7 @@ TYPE(FAST_ExternInitType)             :: ExternInitData
       ! Init NWTC_Library, display copyright and version information:
    CALL FAST_ProgStart( Farm_Ver )
 
-   p%NumTurbines = 0
-   IsInitialized = .false.
+   farm%p%NumTurbines = 0
    
    InputFileName = "" ! make sure we don't think this is a "default" inputFileName if not specified on command line
    CALL CheckArgs( InputFileName, ErrStat, Flag=FlagArg )  ! if ErrStat /= ErrID_None, we'll ignore and deal with the problem when we try to read the input file
@@ -105,32 +104,45 @@ TYPE(FAST_ExternInitType)             :: ExternInitData
    ELSE
       Restart_step = 0
       
-      call Farm_Initialize( p, InputFileName, ErrStat, ErrMsg )
+      call Farm_Initialize( farm%p, InputFileName, ErrStat, ErrMsg )
          CALL CheckError( ErrStat, ErrMsg, 'during driver initialization' )
       
       
-      ALLOCATE(Turbine(p%NumTurbines),STAT=ErrStat)
+      ALLOCATE(farm%FWrap(farm%p%NumTurbines),STAT=ErrStat)
          if (ErrStat /= 0) CALL CheckError( ErrID_Fatal, 'Could not allocate memory for FAST data', 'during driver initialization' )
             
       
       !.................
       ! Initialize each instance of FAST
-      !................
-      ExternInitData%Tmax = p%TMax
-      ExternInitData%SensorType = SensorType_None
-      ExternInitData%LidRadialVel = .false.
-      ExternInitData%NumSC2Ctrl = 0 ! "number of controller inputs [from supercontroller]"
-      ExternInitData%NumCtrl2SC = 0 ! "number of controller outputs [to supercontroller]"
+      !................      
+      Interval = farm%p%dt
       
-      DO i_turb = 1,p%NumTurbines
+      !FWrap_InitInp%nr            = 
+      !FWrap_InitInp%dr            = 
+      FWrap_InitInp%tmax          = farm%p%TMax
+      !FWrap_InitInp%n_high_low    = 
+      !FWrap_InitInp%dt_high       = 
+      !FWrap_InitInp%p_ref_high    = 
+      !FWrap_InitInp%nX_high       = 
+      !FWrap_InitInp%nY_high       = 
+      !FWrap_InitInp%nZ_high       = 
+      !FWrap_InitInp%dX_high       = 
+      !FWrap_InitInp%dY_high       = 
+      !FWrap_InitInp%dZ_high       = 
+      
+      DO i_turb = 1,farm%p%NumTurbines
          !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
          ! initialization
-         !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-         ExternInitData%TurbineID = i_turb
-         ExternInitData%TurbinePos = p%WT_Position(:,i_turb)
-                  
-         CALL FAST_InitializeAll_T( t_initial, i_turb, Turbine(i_turb), ErrStat, ErrMsg, p%WT_FASTInFile(i_turb) )     ! bjj: we need to get the input files for each turbine (not necessarially the same one)
-IsInitialized = .true.
+         !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++         
+         
+         FWrap_InitInp%FASTInFile    = farm%p%WT_FASTInFile(i_turb)
+         FWrap_InitInp%p_ref_Turbine = farm%p%WT_Position(:,i_turb)
+         FWrap_InitInp%TurbNum       = i_turb
+         
+         call FWrap_Init( FWrap_InitInp, farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
+                          farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, Interval, FWrap_InitOut, ErrStat, ErrMsg )
+         
+         farm%FWrap(i_turb)%IsInitialized = .true.
          CALL CheckError( ErrStat, ErrMsg, 'during module initialization' )
 
 !bjj: this will overwrite ProgName (in case of errors, this would say we're running FAST, not FAST.Farm)
@@ -142,7 +154,7 @@ IsInitialized = .true.
          !...............................................................................................................................
          ! Initialization: (calculate outputs based on states at t=t_initial as well as guesses of inputs and constraint states)
          !...............................................................................................................................     
-         CALL FAST_Solution0_T( Turbine(i_turb), ErrStat, ErrMsg )
+         CALL FAST_Solution0_T( farm%FWrap(i_turb)%m%Turbine, ErrStat, ErrMsg )
          CALL CheckError( ErrStat, ErrMsg, 'during simulation initialization'  )
       
 !make sure they all have the same time step!!!
@@ -197,8 +209,8 @@ IsInitialized = .true.
    !  Write simulation times and stop
    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    
-   DO i_turb = 1,p%NumTurbines
-      CALL ExitThisProgram_T( Turbine(i_turb), ErrID_None, .false. )
+   DO i_turb = 1,farm%p%NumTurbines
+      if (farm%FWrap(i_turb)%IsInitialized) CALL ExitThisProgram_T( farm%FWrap(i_turb)%m%Turbine, ErrID_None, .false. )
    END DO
    
    call Cleanup()
@@ -227,18 +239,14 @@ CONTAINS
                SimMsg = ErrLocMsg
             ELSE
                ! make sure Turbine() is allocated!
-               SimMsg = 'at simulation time '//TRIM(Num2LStr(Turbine(1)%m_FAST%t_global))//' of '//TRIM(Num2LStr(Turbine(1)%p_FAST%TMax))//' seconds'
+               SimMsg = 'at simulation time '//TRIM(Num2LStr(farm%FWrap(1)%m%Turbine%m_FAST%t_global))//' of '//TRIM(Num2LStr(farm%FWrap(1)%m%Turbine%p_FAST%TMax))//' seconds'
             END IF
             
-            if (IsInitialized) then
-               DO i_turb2 = 1,p%NumTurbines
-   !make sure we've initialized FAST before calling exit this program!!!!               
-                     ! destroy any allocated arrays and/or pointers
-                  CALL ExitThisProgram_T( Turbine(i_turb2), ErrID, .false., SimMsg ) 
-               END DO
-            end if
-            
-                        
+            DO i_turb2 = 1,farm%p%NumTurbines
+                  ! destroy any allocated arrays and/or pointers
+               if (farm%FWrap(i_turb2)%IsInitialized)  CALL ExitThisProgram_T( farm%FWrap(i_turb2)%m%Turbine, ErrID, .false., SimMsg ) 
+            END DO
+                                 
             call Cleanup()
             call ProgAbort('', TrapErrors=.FALSE., TimeWait=3._ReKi )
             
@@ -251,7 +259,6 @@ CONTAINS
    !............................................................................................................................... 
    SUBROUTINE Cleanup()
    
-      if (allocated(Turbine)) deallocate(Turbine)
       
    END SUBROUTINE Cleanup
 END PROGRAM FAST_Farm
