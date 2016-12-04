@@ -49,8 +49,9 @@ typedef    ^    ^                 logical                   IsInitialized -   .F
 
 
 # ..... All submodules' variables.................................................................................................
+typedef    ^   All_FastFarm_Data  Farm_ParameterType        p          -   -   -   "FAST.Farm parameter data" -
 typedef    ^   All_FastFarm_Data  FASTWrapper_Data          FWrap     {:}  -   -   "FASTWrapper data (one instance per turbine)" -
-typedef    ^   ^                  Farm_ParameterType        p          -   -   -   "FAST.Farm parameter data" -
+#typedef    ^   All_FastFarm_Data  AWAE_Data                 AWAE       -   -   -   "Ambient Wind & Array Effects (AWAE) data" -
 
 
 # ..... FAST.Farm data ................................................................................................................

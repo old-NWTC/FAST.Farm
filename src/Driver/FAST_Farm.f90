@@ -104,49 +104,11 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
    ELSE
       Restart_step = 0
       
-      call Farm_Initialize( farm%p, InputFileName, ErrStat, ErrMsg )
+      call Farm_Initialize( farm, InputFileName, ErrStat, ErrMsg )
          CALL CheckError( ErrStat, ErrMsg, 'during driver initialization' )
-      
-      
-      ALLOCATE(farm%FWrap(farm%p%NumTurbines),STAT=ErrStat)
-         if (ErrStat /= 0) CALL CheckError( ErrID_Fatal, 'Could not allocate memory for FAST data', 'during driver initialization' )
             
       
-      !.................
-      ! Initialize each instance of FAST
-      !................      
-      Interval = farm%p%dt
-      
-      !FWrap_InitInp%nr            = 
-      !FWrap_InitInp%dr            = 
-      FWrap_InitInp%tmax          = farm%p%TMax
-      !FWrap_InitInp%n_high_low    = 
-      !FWrap_InitInp%dt_high       = 
-      !FWrap_InitInp%p_ref_high    = 
-      !FWrap_InitInp%nX_high       = 
-      !FWrap_InitInp%nY_high       = 
-      !FWrap_InitInp%nZ_high       = 
-      !FWrap_InitInp%dX_high       = 
-      !FWrap_InitInp%dY_high       = 
-      !FWrap_InitInp%dZ_high       = 
-      
       DO i_turb = 1,farm%p%NumTurbines
-         !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-         ! initialization
-         !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++         
-         
-         FWrap_InitInp%FASTInFile    = farm%p%WT_FASTInFile(i_turb)
-         FWrap_InitInp%p_ref_Turbine = farm%p%WT_Position(:,i_turb)
-         FWrap_InitInp%TurbNum       = i_turb
-         
-         call FWrap_Init( FWrap_InitInp, farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
-                          farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, Interval, FWrap_InitOut, ErrStat, ErrMsg )
-         
-         farm%FWrap(i_turb)%IsInitialized = .true.
-         CALL CheckError( ErrStat, ErrMsg, 'during module initialization' )
-
-!bjj: this will overwrite ProgName (in case of errors, this would say we're running FAST, not FAST.Farm)
-         
       !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       ! loose coupling
       !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -156,9 +118,7 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
          !...............................................................................................................................     
          CALL FAST_Solution0_T( farm%FWrap(i_turb)%m%Turbine, ErrStat, ErrMsg )
          CALL CheckError( ErrStat, ErrMsg, 'during simulation initialization'  )
-      
-!make sure they all have the same time step!!!
-         
+               
       END DO
    END IF
    !
@@ -209,9 +169,7 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
    !  Write simulation times and stop
    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    
-   DO i_turb = 1,farm%p%NumTurbines
-      if (farm%FWrap(i_turb)%IsInitialized) CALL ExitThisProgram_T( farm%FWrap(i_turb)%m%Turbine, ErrID_None, .false. )
-   END DO
+   call FARM_End(farm, ErrStat, ErrMsg)
    
    call Cleanup()
    call NormStop()
@@ -228,7 +186,9 @@ CONTAINS
       CHARACTER(*),   INTENT(IN), OPTIONAL :: ErrLocMsg   ! an optional message describing the location of the error
 
       CHARACTER(1024)                      :: SimMsg      
-      integer(IntKi)                       :: i_turb2
+      
+      INTEGER(IntKi)                        :: ErrStat2   ! Error status
+      CHARACTER(ErrMsgLen)                  :: ErrMsg2    ! Error message
       
       
       IF ( ErrID /= ErrID_None ) THEN
@@ -238,15 +198,11 @@ CONTAINS
             IF (PRESENT(ErrLocMsg)) THEN
                SimMsg = ErrLocMsg
             ELSE
-               ! make sure Turbine() is allocated!
+               ! make sure farm%FWrap() is allocated!
                SimMsg = 'at simulation time '//TRIM(Num2LStr(farm%FWrap(1)%m%Turbine%m_FAST%t_global))//' of '//TRIM(Num2LStr(farm%FWrap(1)%m%Turbine%p_FAST%TMax))//' seconds'
             END IF
             
-            DO i_turb2 = 1,farm%p%NumTurbines
-                  ! destroy any allocated arrays and/or pointers
-               if (farm%FWrap(i_turb2)%IsInitialized)  CALL ExitThisProgram_T( farm%FWrap(i_turb2)%m%Turbine, ErrID, .false., SimMsg ) 
-            END DO
-                                 
+            call FARM_End(farm, ErrStat2, ErrMsg2)                                 
             call Cleanup()
             call ProgAbort('', TrapErrors=.FALSE., TimeWait=3._ReKi )
             

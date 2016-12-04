@@ -19,7 +19,7 @@ usefrom FAST_Registry.txt
 #   e.g., the name of the input file, the file root name, etc.
 typedef FASTWrapper/FWrap  InitInputType       IntKi      nr                        -      -      -   "Number of radii in the radial finite-difference grid"      -
 typedef      ^            InitInputType CHARACTER(1024)  FASTInFile                -      -      -   "Filename of primary FAST input file of this turbine"      -
-typedef      ^            InitInputType       ReKi       dr                       {:}     -      -   "Radial increment of radial finite-difference grid"      m
+typedef      ^            InitInputType       ReKi       dr                        -      -      -   "Radial increment of radial finite-difference grid"      m
 #typedef      ^            InitInputType       DbKi       dt                        -      -      -   "Time step"      s
 typedef      ^            InitInputType       DbKi       tmax                      -      -      -   "Simulation length"      s
 typedef      ^            InitInputType       ReKi       p_ref_Turbine            {3}     -      -   "Undisplaced global coordinates of this turbine"      m

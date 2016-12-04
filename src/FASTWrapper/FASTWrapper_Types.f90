@@ -73,7 +73,7 @@ IMPLICIT NONE
   TYPE, PUBLIC :: FWrap_InitInputType
     INTEGER(IntKi)  :: nr      !< Number of radii in the radial finite-difference grid [-]
     CHARACTER(1024)  :: FASTInFile      !< Filename of primary FAST input file of this turbine [-]
-    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: dr      !< Radial increment of radial finite-difference grid [m]
+    REAL(ReKi)  :: dr      !< Radial increment of radial finite-difference grid [m]
     REAL(DbKi)  :: tmax      !< Simulation length [s]
     REAL(ReKi) , DIMENSION(1:3)  :: p_ref_Turbine      !< Undisplaced global coordinates of this turbine [m]
     INTEGER(IntKi)  :: n_high_low      !< Number of high-resolution time steps per low-resolution time step [-]
@@ -173,18 +173,7 @@ CONTAINS
    ErrMsg  = ""
     DstInitInputData%nr = SrcInitInputData%nr
     DstInitInputData%FASTInFile = SrcInitInputData%FASTInFile
-IF (ALLOCATED(SrcInitInputData%dr)) THEN
-  i1_l = LBOUND(SrcInitInputData%dr,1)
-  i1_u = UBOUND(SrcInitInputData%dr,1)
-  IF (.NOT. ALLOCATED(DstInitInputData%dr)) THEN 
-    ALLOCATE(DstInitInputData%dr(i1_l:i1_u),STAT=ErrStat2)
-    IF (ErrStat2 /= 0) THEN 
-      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstInitInputData%dr.', ErrStat, ErrMsg,RoutineName)
-      RETURN
-    END IF
-  END IF
     DstInitInputData%dr = SrcInitInputData%dr
-ENDIF
     DstInitInputData%tmax = SrcInitInputData%tmax
     DstInitInputData%p_ref_Turbine = SrcInitInputData%p_ref_Turbine
     DstInitInputData%n_high_low = SrcInitInputData%n_high_low
@@ -208,9 +197,6 @@ ENDIF
 ! 
   ErrStat = ErrID_None
   ErrMsg  = ""
-IF (ALLOCATED(InitInputData%dr)) THEN
-  DEALLOCATE(InitInputData%dr)
-ENDIF
  END SUBROUTINE FWrap_DestroyInitInput
 
  SUBROUTINE FWrap_PackInitInput( ReKiBuf, DbKiBuf, IntKiBuf, Indata, ErrStat, ErrMsg, SizeOnly )
@@ -250,11 +236,7 @@ ENDIF
   Int_BufSz  = 0
       Int_BufSz  = Int_BufSz  + 1  ! nr
       Int_BufSz  = Int_BufSz  + 1*LEN(InData%FASTInFile)  ! FASTInFile
-  Int_BufSz   = Int_BufSz   + 1     ! dr allocated yes/no
-  IF ( ALLOCATED(InData%dr) ) THEN
-    Int_BufSz   = Int_BufSz   + 2*1  ! dr upper/lower bounds for each dimension
-      Re_BufSz   = Re_BufSz   + SIZE(InData%dr)  ! dr
-  END IF
+      Re_BufSz   = Re_BufSz   + 1  ! dr
       Db_BufSz   = Db_BufSz   + 1  ! tmax
       Re_BufSz   = Re_BufSz   + SIZE(InData%p_ref_Turbine)  ! p_ref_Turbine
       Int_BufSz  = Int_BufSz  + 1  ! n_high_low
@@ -300,19 +282,8 @@ ENDIF
           IntKiBuf(Int_Xferred) = ICHAR(InData%FASTInFile(I:I), IntKi)
           Int_Xferred = Int_Xferred   + 1
         END DO ! I
-  IF ( .NOT. ALLOCATED(InData%dr) ) THEN
-    IntKiBuf( Int_Xferred ) = 0
-    Int_Xferred = Int_Xferred + 1
-  ELSE
-    IntKiBuf( Int_Xferred ) = 1
-    Int_Xferred = Int_Xferred + 1
-    IntKiBuf( Int_Xferred    ) = LBOUND(InData%dr,1)
-    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%dr,1)
-    Int_Xferred = Int_Xferred + 2
-
-      IF (SIZE(InData%dr)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%dr))-1 ) = PACK(InData%dr,.TRUE.)
-      Re_Xferred   = Re_Xferred   + SIZE(InData%dr)
-  END IF
+      ReKiBuf ( Re_Xferred:Re_Xferred+(1)-1 ) = InData%dr
+      Re_Xferred   = Re_Xferred   + 1
       DbKiBuf ( Db_Xferred:Db_Xferred+(1)-1 ) = InData%tmax
       Db_Xferred   = Db_Xferred   + 1
       ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%p_ref_Turbine))-1 ) = PACK(InData%p_ref_Turbine,.TRUE.)
@@ -381,29 +352,8 @@ ENDIF
         OutData%FASTInFile(I:I) = CHAR(IntKiBuf(Int_Xferred))
         Int_Xferred = Int_Xferred   + 1
       END DO ! I
-  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! dr not allocated
-    Int_Xferred = Int_Xferred + 1
-  ELSE
-    Int_Xferred = Int_Xferred + 1
-    i1_l = IntKiBuf( Int_Xferred    )
-    i1_u = IntKiBuf( Int_Xferred + 1)
-    Int_Xferred = Int_Xferred + 2
-    IF (ALLOCATED(OutData%dr)) DEALLOCATE(OutData%dr)
-    ALLOCATE(OutData%dr(i1_l:i1_u),STAT=ErrStat2)
-    IF (ErrStat2 /= 0) THEN 
-       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%dr.', ErrStat, ErrMsg,RoutineName)
-       RETURN
-    END IF
-    ALLOCATE(mask1(i1_l:i1_u),STAT=ErrStat2)
-    IF (ErrStat2 /= 0) THEN 
-       CALL SetErrStat(ErrID_Fatal, 'Error allocating mask1.', ErrStat, ErrMsg,RoutineName)
-       RETURN
-    END IF
-    mask1 = .TRUE. 
-      IF (SIZE(OutData%dr)>0) OutData%dr = UNPACK(ReKiBuf( Re_Xferred:Re_Xferred+(SIZE(OutData%dr))-1 ), mask1, 0.0_ReKi )
-      Re_Xferred   = Re_Xferred   + SIZE(OutData%dr)
-    DEALLOCATE(mask1)
-  END IF
+      OutData%dr = ReKiBuf( Re_Xferred )
+      Re_Xferred   = Re_Xferred + 1
       OutData%tmax = DbKiBuf( Db_Xferred ) 
       Db_Xferred   = Db_Xferred + 1
     i1_l = LBOUND(OutData%p_ref_Turbine,1)

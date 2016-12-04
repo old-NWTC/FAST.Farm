@@ -40,10 +40,19 @@ MODULE FAST_Farm_Subs
    CONTAINS
 
 !----------------------------------------------------------------------------------------------------------------------------------
-!> Routine to call Init routine for each module. This routine sets all of the init input data for each module.
-SUBROUTINE Farm_Initialize( p, InputFile, ErrStat, ErrMsg )
+!> Routine to call Init routine for each module. This routine sets all of the init input data for each module. The initialization algorithm is: \n
+!!   -  Read-In Input File
+!!   -  Check Inputs and Set Parameters
+!!   -  CALL AWAE_Init, CALL_SC_Init (in parallel)
+!!   -  Transfer y_AWAE_Init to u_WD_Init, Transfer y_AWAE_Init to u_F_Init (in parallel)
+!!   -  CALL WD_Init, CALL F_Init (in parallel)
+!!   -  Open Output File
+!!   -  n=0
+!!   -  t=0
 
-   TYPE(Farm_ParameterType), INTENT(INOUT) :: p                   !< FAST.Farm driver parameters   
+SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
+
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm  
       
    INTEGER(IntKi),           INTENT(  OUT) :: ErrStat             !< Error status of the operation
    CHARACTER(*),             INTENT(  OUT) :: ErrMsg              !< Error message if ErrStat /= ErrID_None
@@ -62,7 +71,6 @@ SUBROUTINE Farm_Initialize( p, InputFile, ErrStat, ErrMsg )
    ErrStat = ErrID_None
    ErrMsg  = ""         
    AbortErrLev            = ErrID_Fatal                                 ! Until we read otherwise from the FAST input file, we abort only on FATAL errors
-   !m_FAST%t_global        = t_initial - 20.                             ! initialize this to a number < t_initial for error message in ProgAbort  
       
    
       ! ... Open and read input files, initialize global parameters. ...
@@ -75,61 +83,55 @@ SUBROUTINE Farm_Initialize( p, InputFile, ErrStat, ErrMsg )
       RETURN
    END IF            
                         
-
       ! Determine the root name of the primary file (will be used for output files)
-   CALL GetRoot( InputFile, p%OutFileRoot )      
-      
-      
-      
+   CALL GetRoot( InputFile, farm%p%OutFileRoot )      
+                     
    !...............................................................................................................................  
-
-   call Farm_ReadPrimaryFile( InputFile, p, WD_InitInput%InputFileData, ErrStat2, ErrMsg2 )
+   ! step 1: read input file
+   
+   call Farm_ReadPrimaryFile( InputFile, farm%p, WD_InitInput%InputFileData, ErrStat2, ErrMsg2 )
       CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       IF (ErrStat >= AbortErrLev) THEN
          CALL Cleanup()
          RETURN
       END IF
 
-   call Farm_ValidateInput( p, WD_InitInput%InputFileData, ErrStat2, ErrMsg2 )
+   ! step 2: validate input & set parameters
+   call Farm_ValidateInput( farm%p, WD_InitInput%InputFileData, ErrStat2, ErrMsg2 )
       CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       IF (ErrStat >= AbortErrLev) THEN
          CALL Cleanup()
          RETURN
       END IF   
       
-   p%TChanLen = max( 10, int(log10(p%TMax))+7 )
-   p%OutFmt_t = 'F'//trim(num2lstr( p%TChanLen ))//'.4' ! 'F10.4'    
+   farm%p%TChanLen = max( 10, int(log10(farm%p%TMax))+7 )
+   farm%p%OutFmt_t = 'F'//trim(num2lstr( farm%p%TChanLen ))//'.4' ! 'F10.4'    
 
+   !...............................................................................................................................  
+   ! step 3: initialize SC and AWAE (in parallel)
    
-   !! ........................
-   !! Set up output for glue code (must be done after all modules are initialized so we have their WriteOutput information)
-   !! ........................
-   !
-   !CALL FAST_InitOutput( p_FAST, y_FAST, InitOutData_ED, InitOutData_BD, InitOutData_SrvD, InitOutData_AD14, InitOutData_AD, &
-   !                      InitOutData_IfW, InitOutData_OpFM, InitOutData_HD, InitOutData_SD, InitOutData_ExtPtfm, InitOutData_MAP, &
-   !                      InitOutData_FEAM, InitOutData_MD, InitOutData_Orca, InitOutData_IceF, InitOutData_IceD, ErrStat2, ErrMsg2 )
-   !   CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !
-   !
-   !
-   !   
-   !
-   !! -------------------------------------------------------------------------
-   !! Write initialization data to FAST summary file:
-   !! -------------------------------------------------------------------------
-   !
-   !CALL FAST_WrSum( p_FAST, y_FAST, MeshMapData, ErrStat2, ErrMsg2 )
-   !   CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !
-   !
-   !! -------------------------------------------------------------------------
-   !! other misc variables initialized here:
-   !! -------------------------------------------------------------------------
-   !   
-   !m_FAST%t_global        = t_initial
-   !m_FAST%NextLinTimeIndx = 1 
-         
-         
+   !call AWAE_Init()
+   farm%p%dt = 0.00625_DbKi ! this  dt will get set in the AWAE module
+   !call SC_Init()
+   
+   !...............................................................................................................................  
+   ! step 4: initialize WD and FAST (in parallel; each instance of FAST can also be done in parallel)
+   
+   ! call WD_Init(AWAE_InitOutput)
+   
+!   CALL Farm_InitFAST( farm, WD_InitInput%InputFileData, AWAE_InitOutput, ErrStat2, ErrMsg2)
+   CALL Farm_InitFAST( farm, WD_InitInput%InputFileData, ErrStat2, ErrMsg2)
+      CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+      IF (ErrStat >= AbortErrLev) THEN
+         CALL Cleanup()
+         RETURN
+      END IF   
+
+   !...............................................................................................................................  
+   ! step 5: Open output file (or set up output file handling)      
+      
+   !...............................................................................................................................  
+   ! step 6: set n=0 and t=0         
    
    !...............................................................................................................................
    ! Destroy initializion data
@@ -138,10 +140,8 @@ SUBROUTINE Farm_Initialize( p, InputFile, ErrStat, ErrMsg )
    
 CONTAINS
    SUBROUTINE Cleanup()
-   !...............................................................................................................................
-   ! Destroy initializion data
-   !...............................................................................................................................
    
+      call WD_DestroyInitInput(WD_InitInput, ErrStat2, ErrMsg2)
          
    END SUBROUTINE Cleanup
 
@@ -407,8 +407,10 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, WD_InitInp, ErrStat, ErrMsg )
          RETURN        
       end if
       
-      ! f_c - Cut-off frequency of the low-pass time-filter for the wake advection, deflection, and meandering model (Hz) [>0.0] or DEFAULT [DEFAULT=1/30]:
-   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%f_c, "f_c", "Number of wake planes (-) [>=2]", 1.0_ReKi/30.0_ReKi, ErrStat2, ErrMsg2, UnEc)
+      ! f_c - Cut-off (corner) frequency of the low-pass time-filter for the wake advection, deflection, and meandering model (Hz) [>0.0] or DEFAULT [DEFAULT=1/30]:
+   CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%f_c, "f_c", &
+      "Cut-off (corner) frequency of the low-pass time-filter for the wake advection, deflection, and meandering model (Hz) [>0.0] or DEFAULT [DEFAULT=1/30]", &
+      1.0_ReKi/30.0_ReKi, ErrStat2, ErrMsg2, UnEc)
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       if ( ErrStat >= AbortErrLev ) then
          call cleanup()
@@ -458,9 +460,9 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, WD_InitInp, ErrStat, ErrMsg )
    WD_InitInp%C_HWkDfl_xY = WD_InitInp%C_HWkDfl_xY/D2R !immediately convert to 1/radians instead of 1/degrees      
 
    
-      ! C_NearWake - Calibrated parameter for the near-wake correction (-) [>-1.0] or DEFAULT [DEFAULT=2.0]:
+      ! C_NearWake - Calibrated parameter for the near-wake correction (-) [>1.0] or DEFAULT [DEFAULT=2.0]:
    CALL ReadVarWDefault( UnIn, InputFile, WD_InitInp%C_NearWake, "C_NearWake", &
-      "Calibrated parameter for the near-wake correction (-) [>-1.0] or DEFAULT [DEFAULT=2.0]", &
+      "Calibrated parameter for the near-wake correction (-) [>1.0] or DEFAULT [DEFAULT=2.0]", &
       2.0_ReKi, ErrStat2, ErrMsg2, UnEc)
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       if ( ErrStat >= AbortErrLev ) then
@@ -708,8 +710,8 @@ SUBROUTINE Farm_ValidateInput( p, WD_InitInp, ErrStat, ErrMsg )
    IF (WD_InitInp%NumRadii < 2) CALL SetErrStat(ErrID_Fatal,'NumRadii (number of radii) must be at least 2.',ErrStat,ErrMsg,RoutineName)
    IF (WD_InitInp%NumPlanes < 2) CALL SetErrStat(ErrID_Fatal,'NumPlanes (number of wake planes) must be at least 2.',ErrStat,ErrMsg,RoutineName)
 
-   IF (WD_InitInp%f_c <= 0.0_ReKi) CALL SetErrStat(ErrID_Fatal,'f_c (cut-off frequency) must be more than 0 Hz.',ErrStat,ErrMsg,RoutineName)
-   IF (WD_InitInp%C_NearWake <= -1.0_Reki) CALL SetErrStat(ErrID_Fatal,'C_NearWake parameter must be more than -1.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%f_c <= 0.0_ReKi) CALL SetErrStat(ErrID_Fatal,'f_c (cut-off [corner] frequency) must be more than 0 Hz.',ErrStat,ErrMsg,RoutineName)
+   IF (WD_InitInp%C_NearWake <= 1.0_Reki) CALL SetErrStat(ErrID_Fatal,'C_NearWake parameter must be greater than 1.',ErrStat,ErrMsg,RoutineName)
    IF (WD_InitInp%k_vAmb < 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'k_vAmb parameter must not be negative.',ErrStat,ErrMsg,RoutineName)
    IF (WD_InitInp%k_vShr < 0.0_Reki) CALL SetErrStat(ErrID_Fatal,'k_vShr parameter must not be negative.',ErrStat,ErrMsg,RoutineName)
    
@@ -749,5 +751,131 @@ SUBROUTINE Farm_ValidateInput( p, WD_InitInp, ErrStat, ErrMsg )
 END SUBROUTINE Farm_ValidateInput
 !----------------------------------------------------------------------------------------------------------------------------------
 
+!----------------------------------------------------------------------------------------------------------------------------------
+!> This routine initializes all instances of FAST using the FASTWrapper routine
+SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
+
+
+      ! Passed variables
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm  
+   TYPE(WD_InputFileType),   INTENT(IN   ) :: WD_InitInp                      !< input-file data for WakeDynamics module
+   INTEGER(IntKi),           INTENT(  OUT) :: ErrStat                         !< Error status
+   CHARACTER(*),             INTENT(  OUT) :: ErrMsg                          !< Error message
+
+   ! local variables
+   type(FWrap_InitInputType)               :: FWrap_InitInp
+   type(FWrap_InitOutputType)              :: FWrap_InitOut
+
+   INTEGER(IntKi)                          :: i_turb                          ! Temporary Error status
+   INTEGER(IntKi)                          :: ErrStat2                        ! Temporary Error status
+   CHARACTER(ErrMsgLen)                    :: ErrMsg2                         ! Temporary Error message
+   CHARACTER(*),   PARAMETER               :: RoutineName = 'Farm_InitFAST'
+   
+   
+   
+   ErrStat = ErrID_None
+   ErrMsg = ""
+   
+   ALLOCATE(farm%FWrap(farm%p%NumTurbines),STAT=ErrStat2)
+   if (ErrStat2 /= 0) then
+      CALL SetErrStat( ErrID_Fatal, 'Could not allocate memory for FAST Wrapper data', ErrStat, ErrMsg, RoutineName )
+      return
+   end if
+   
+
+         
+      !.................
+      ! Initialize each instance of FAST
+      !................            
+      FWrap_InitInp%nr            = WD_InitInp%NumRadii
+      FWrap_InitInp%dr            = WD_InitInp%dr
+      FWrap_InitInp%tmax          = farm%p%TMax
+         ! data from AWAE_InitOut
+      !FWrap_InitInp%n_high_low    = 
+      !FWrap_InitInp%dt_high       = 
+      !FWrap_InitInp%p_ref_high    = 
+      !FWrap_InitInp%nX_high       = 
+      !FWrap_InitInp%nY_high       = 
+      !FWrap_InitInp%nZ_high       = 
+      !FWrap_InitInp%dX_high       = 
+      !FWrap_InitInp%dY_high       = 
+      !FWrap_InitInp%dZ_high       = 
+      
+      DO i_turb = 1,farm%p%NumTurbines
+         !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+         ! initialization
+         !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++         
+         
+         FWrap_InitInp%FASTInFile    = farm%p%WT_FASTInFile(i_turb)
+         FWrap_InitInp%p_ref_Turbine = farm%p%WT_Position(:,i_turb)
+         FWrap_InitInp%TurbNum       = i_turb
+         
+            ! note that FWrap_Init has Interval as INTENT(IN) so, we don't need to worry about overwriting farm%p%dt here:
+         call FWrap_Init( FWrap_InitInp, farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
+                          farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, farm%p%dt, FWrap_InitOut, ErrStat, ErrMsg )
+         
+         farm%FWrap(i_turb)%IsInitialized = .true.
+            CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+            if (ErrStat >= AbortErrLev) then
+               call cleanup()
+               return
+            end if
+            
+      END DO   
+   
+contains
+   subroutine cleanup()
+      call FWrap_DestroyInitInput( FWrap_InitInp, ErrStat2, ErrMsg2 )
+      call FWrap_DestroyInitOutput( FWrap_InitOut, ErrStat2, ErrMsg2 )
+   end subroutine cleanup
+END SUBROUTINE Farm_InitFAST
+!----------------------------------------------------------------------------------------------------------------------------------
+! This routine ends the modules used in this simulation. It does not exit the program.
+subroutine FARM_End(farm, ErrStat, ErrMsg)
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm  
+   INTEGER(IntKi),           INTENT(  OUT) :: ErrStat                         !< Error status
+   CHARACTER(*),             INTENT(  OUT) :: ErrMsg                          !< Error message
+
+   INTEGER(IntKi)                          :: i_turb                    
+   INTEGER(IntKi)                          :: ErrStat2                        ! Temporary Error status
+   CHARACTER(ErrMsgLen)                    :: ErrMsg2                         ! Temporary Error message
+   CHARACTER(*),   PARAMETER               :: RoutineName = 'FARM_End'
+   
+   
+   
+   ErrStat = ErrID_None
+   ErrMsg = ""
+   
+   !.......................................................................................
+   ! End supercontroller
+   
+   !CALL SC_End()
+   
+   
+   !.......................................................................................
+   ! End each instance of FAST
+   
+   DO i_turb = 1,farm%p%NumTurbines
+      if (farm%FWrap(i_turb)%IsInitialized) then
+         CALL FWrap_End( farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
+                         farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, ErrStat2, ErrMsg2 )
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      end if
+   END DO
+   
+   
+   !.......................................................................................
+   ! end WakeDynamics
+   ! call WD_End()
+
+   !.......................................................................................
+   ! end AWAE
+   ! call AWAE_End()
+   
+   !.......................................................................................
+   ! close output file
+   
+end subroutine FARM_End
+!----------------------------------------------------------------------------------------------------------------------------------
 END MODULE FAST_Farm_Subs
 !**********************************************************************************************************************************

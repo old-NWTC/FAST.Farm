@@ -65,7 +65,7 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
    TYPE(FWrap_OutputType),          INTENT(  OUT)  :: y           !< Initial system outputs (outputs are not calculated;
                                                                   !!   only the output mesh is initialized)
    TYPE(FWrap_MiscVarType),         INTENT(  OUT)  :: m           !< Misc variables for optimization (not copied in glue code)
-   REAL(DbKi),                      INTENT(INOUT)  :: Interval    !< Coupling interval in seconds: the rate that
+   REAL(DbKi),                      INTENT(IN   )  :: Interval    !< Coupling interval in seconds: the rate that
                                                                   !!   (1) Wrap_UpdateStates() is called in loose coupling &
                                                                   !!   (2) Wrap_UpdateDiscState() is called in tight coupling.
                                                                   !!   Input is the suggested time from the glue code;
@@ -98,10 +98,6 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
    if (InitInp%TurbNum == 1) call DispNVD( FWrap_Ver )
 
 
-      ! Define parameters here:
-
-!   p%DT  = Interval
-
 
       ! Define initial system states here:
 
@@ -115,7 +111,6 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       ! Define initial guess for the system inputs here:
 
    
-   !--------------------------------------------------------------------      
       !.................
       ! Initialize an instance of FAST
       !................
@@ -130,34 +125,24 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       ExternInitData%FarmIntegration = .true.
       
       CALL FAST_InitializeAll_T( t_initial, InitInp%TurbNum, m%Turbine, ErrStat2, ErrMsg2, InitInp%FASTInFile, ExternInitData ) 
-      call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName) ! set return error status based on local (concatenate errors)
-
+         call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName) 
+         if (ErrStat >= AbortErrLev) then
+            call cleanup()
+            return
+         end if
+         
       
-      ! check init data
-      
-   !--------------------------------------------------------------------      
-   
-      ! Define system output initializations (set up mesh) here:
-   !call AllocAry( y%WriteOutput, NumOuts, 'WriteOutput', ErrStat2, ErrMsg2 )
-   !   call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName) ! set return error status based on local (concatenate errors)
-   !   if (ErrStat >= AbortErrLev) return        ! if there are local variables that need to be deallocated, do so before early return
-   !   
-   !y%DummyOutput = 0
-   !y%WriteOutput = 0
-   !
-   !
-   !   ! Define initialization-routine output here:
-   !call AllocAry(InitOut%WriteOutputHdr,NumOuts,'WriteOutputHdr',ErrStat2,ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !call AllocAry(InitOut%WriteOutputUnt,NumOuts,'WriteOutputUnt',ErrStat2,ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !   if (ErrStat >= AbortErrLev) return        ! if there are local variables that need to be deallocated, do so before early return
-   !
-   !InitOut%WriteOutputHdr = (/ 'Time   ', 'Column2' /)
-   !InitOut%WriteOutputUnt = (/ '(s)',     '(-)'     /)
+      !.................
+      ! Define parameters here:
+      !.................
 
-
-      ! If you want to choose your own rate instead of using what the glue code suggests, tell the glue code the rate at which
-      !   this module must be called here:
-
+      call SetParameters(InitInp, p, m%Turbine%p_FAST%dt, Interval, ErrStat2, ErrMsg2)
+         call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName) 
+         if (ErrStat >= AbortErrLev) then
+            call cleanup()
+            return
+         end if
+         
 contains
    subroutine cleanup()
    
@@ -167,8 +152,88 @@ contains
 
 END SUBROUTINE FWrap_Init
 !----------------------------------------------------------------------------------------------------------------------------------
+! this routine sets the parameters for the FAST Wrapper module. It does not set p%n_FAST_low because we need to initialize FAST first.
+subroutine SetParameters(InitInp, p, dt_FAST, InitInp_dt, ErrStat, ErrMsg)
+   TYPE(FWrap_InitInputType),       INTENT(IN   )  :: InitInp     !< Input data for initialization routine
+   TYPE(FWrap_ParameterType),       INTENT(INOUT)  :: p           !< Parameters
+   REAL(DbKi),                      INTENT(IN   )  :: dt_FAST     !< time step for FAST
+   REAL(DbKi),                      INTENT(IN   )  :: InitInp_dt  !< time step for FAST.Farm
+   
+   INTEGER(IntKi),                  INTENT(  OUT)  :: ErrStat     !< Error status of the operation
+   CHARACTER(*),                    INTENT(  OUT)  :: ErrMsg      !< Error message if ErrStat /= ErrID_None
+
+      ! local variables
+   TYPE(FAST_ExternInitType)                       :: ExternInitData 
+   
+   INTEGER(IntKi)                                  :: i           
+   INTEGER(IntKi)                                  :: ErrStat2    ! local error status
+   CHARACTER(ErrMsgLen)                            :: ErrMsg2     ! local error message
+   CHARACTER(*), PARAMETER                         :: RoutineName = 'FWrap_Init'
+   
+   
+   p%p_ref_Turbine = InitInp%p_ref_Turbine  
+   p%nr            = InitInp%nr              
+   p%n_high_low    = InitInp%n_high_low  
+   p%dt_high       = InitInp%dt_high
+   p%nX_high       = InitInp%nX_high    
+   p%nY_high       = InitInp%nY_high    
+   p%nZ_high       = InitInp%nZ_high    
+
+   call AllocAry(p%r, p%nr, 'p%r (radial discretization)', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+   call AllocAry(p%X_high, p%nX_high, 'p%X_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+   call AllocAry(p%Y_high, p%nY_high, 'p%Y_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+   call AllocAry(p%Z_high, p%nZ_high, 'p%Z_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+
+   if (ErrStat>=AbortErrLev) return
+   
+   do i=1,p%nr
+      p%r(i) = i*InitInp%dr
+   end do
+   
+   !BJJ: IT MIGHT be easier to just save the deltas so we can interpolate into these fields...
+   do i=1,p%nX_high
+      p%X_high(i) = InitInp%p_ref_high(1) + i*InitInp%dX_high
+   end do
+
+   do i=1,p%nY_high
+      p%Y_high(i) = InitInp%p_ref_high(2) + i*InitInp%dY_high
+   end do
+   
+   do i=1,p%nZ_high
+      p%Z_high(i) = InitInp%p_ref_high(3) + i*InitInp%dZ_high
+   end do
+   
+   ! this one will have to be set after we initialize FAST, because we need to know what the FAST time step is going to be.
+   !p%n_FAST_low   
+    
+    
+   IF ( EqualRealNos( dt_FAST, InitInp_dt ) ) THEN
+      p%n_FAST_low = 1
+   ELSE
+      IF ( dt_FAST > InitInp_dt ) THEN
+         ErrStat = ErrID_Fatal
+         ErrMsg = "The FAST time step ("//TRIM(Num2LStr(dt_FAST))// &
+                    " s) cannot be larger than FAST.Farm time step ("//TRIM(Num2LStr(InitInp_dt))//" s)."
+      ELSE
+            ! calculate the number of subcycles:
+         p%n_FAST_low = NINT( InitInp_dt / dt_FAST )
+            
+            ! let's make sure the FAST DT is an exact integer divisor of the global (FAST.Farm) time step:
+         IF ( .NOT. EqualRealNos( InitInp_dt, dt_FAST * p%n_FAST_low )  ) THEN
+            ErrStat = ErrID_Fatal
+            ErrMsg  = "The FAST module time step ("//TRIM(Num2LStr(dt_FAST))// &
+                      " s) must be an integer divisor of the FAST.Farm time step ("//TRIM(Num2LStr(InitInp_dt))//" s)."
+         END IF
+            
+      END IF
+   END IF      
+
+   
+    
+end subroutine SetParameters
+!----------------------------------------------------------------------------------------------------------------------------------
 !> This routine is called at the end of the simulation.
-SUBROUTINE FWrap_End( u, p, x, xd, z, OtherState, y, misc, ErrStat, ErrMsg )
+SUBROUTINE FWrap_End( u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
 !..................................................................................................................................
 
    TYPE(FWrap_InputType),           INTENT(INOUT)  :: u           !< System inputs
@@ -178,7 +243,7 @@ SUBROUTINE FWrap_End( u, p, x, xd, z, OtherState, y, misc, ErrStat, ErrMsg )
    TYPE(FWrap_ConstraintStateType), INTENT(INOUT)  :: z           !< Constraint states
    TYPE(FWrap_OtherStateType),      INTENT(INOUT)  :: OtherState  !< Other states
    TYPE(FWrap_OutputType),          INTENT(INOUT)  :: y           !< System outputs
-   TYPE(FWrap_MiscVarType),         INTENT(INOUT)  :: misc        !< Misc variables for optimization (not copied in glue code)
+   TYPE(FWrap_MiscVarType),         INTENT(INOUT)  :: m           !< Misc variables for optimization (not copied in glue code)
    INTEGER(IntKi),                  INTENT(  OUT)  :: ErrStat     !< Error status of the operation
    CHARACTER(*),                    INTENT(  OUT)  :: ErrMsg      !< Error message if ErrStat /= ErrID_None
 
@@ -195,6 +260,7 @@ SUBROUTINE FWrap_End( u, p, x, xd, z, OtherState, y, misc, ErrStat, ErrMsg )
 
       !! Place any last minute operations or calculations here:
 
+   CALL ExitThisProgram_T( m%Turbine, ErrID_None, .false. )   
 
       !! Close files here (but because of checkpoint-restart capability, it is not recommended to have files open during the simulation):
 
@@ -225,7 +291,7 @@ SUBROUTINE FWrap_End( u, p, x, xd, z, OtherState, y, misc, ErrStat, ErrMsg )
    
       !! Destroy the misc data:
 
-   call FWrap_DestroyMisc( misc, ErrStat2, ErrMsg2 ); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+   call FWrap_DestroyMisc( m, ErrStat2, ErrMsg2 ); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
 
 
 END SUBROUTINE FWrap_End
