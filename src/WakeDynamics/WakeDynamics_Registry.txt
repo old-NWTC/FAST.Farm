@@ -46,7 +46,7 @@ typedef  ^                 WD_InputFileType  ReKi            C_WakeDiam     - - 
 # ..... Initialization data .......................................................................................................
 # Define inputs that the initialization routine may need here:
 #   e.g., the name of the input file, the file root name, etc.
-typedef ^  InitInputType CHARACTER(1024)  RootName       - - -   "The root name derived from the primary FAST.Farm input file"      -
+typedef ^  InitInputType CHARACTER(1024)  RootName       - - -   "The root name derived from the primary FAST.Farm input file [For output reporting in this module we need to have Rootname include the turbine number]"      -
 typedef ^  InitInputType WD_InputFileType InputFileData  - - -   "FAST.Farm input-file data for wake dynamics" -
 
 
@@ -77,14 +77,20 @@ typedef ^  DiscreteStateType   ReKi  YawErr_filt       {:}    - -   "Time-filter
 typedef   ^               ConstraintStateType ReKi     DummyConstrState - - - "Remove this variable if you have constraint states" -
 
 # Define any other states, including integer or logical states here:
-typedef   ^               OtherStateType      IntKi    DummyOtherState - - - "Remove this variable if you have other states" -
-
+typedef   ^      OtherStateType               LOGICAL     firstPass          -      -      -      "Flag indicating whether or not the states have been initialized with proper inputs"      -
 
 # ..... Misc/Optimization variables.................................................................................................
 # Define any data that are used only for efficiency purposes (these variables are not associated with time):
 #   e.g. indices for searching in an array, large arrays that are local variables in any routine called multiple times, etc.
-typedef      ^      MiscVarType               LOGICAL     firstPass          -      -      -      "Flag indicating whether or not the states have been initialized with proper inputs"      -
-
+typedef   ^         MiscVarType   ReKi  dvdr    {:}    - -   ""     
+typedef   ^         MiscVarType   ReKi  dvtdr   {:}    - -   ""     
+typedef   ^         MiscVarType   ReKi  vt      {:}    - -   ""     
+typedef   ^         MiscVarType   ReKi  a       {:}    - -   ""     
+typedef   ^         MiscVarType   ReKi  b       {:}    - -   ""     
+typedef   ^         MiscVarType   ReKi  c       {:}    - -   ""     
+typedef   ^         MiscVarType   ReKi  d       {:}    - -   "" 
+typedef   ^         MiscVarType   ReKi  r_wake  {:}    - -   ""    
+ 
 
 # ..... Parameters ................................................................................................................
 # Define parameters here:
