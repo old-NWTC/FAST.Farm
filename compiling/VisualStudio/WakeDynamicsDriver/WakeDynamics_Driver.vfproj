@@ -28,24 +28,24 @@
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<Filter Name="NWTC_Library">
-		<File RelativePath="..\..\..\src\NWTC_Library\ModMesh.f90"/>
-		<File RelativePath="..\..\..\src\NWTC_Library\ModMesh_Mapping.f90"/>
-		<File RelativePath="..\..\..\src\NWTC_Library\ModMesh_Types.f90"/>
-		<File RelativePath="..\..\..\src\NWTC_Library\NWTC_Base.f90"/>
-		<File RelativePath="..\..\..\src\NWTC_Library\NWTC_IO.f90"/>
-		<File RelativePath="..\..\..\src\NetLib\NWTC_LAPACK.f90"/>
-		<File RelativePath="..\..\..\src\NWTC_Library\NWTC_Library.f90"/>
-		<File RelativePath="..\..\..\src\NWTC_Library\NWTC_Library_Types.f90"/>
-		<File RelativePath="..\..\..\src\NWTC_Library\NWTC_Num.f90"/>
-		<File RelativePath="..\..\..\src\NWTC_Library\SingPrec.f90"/>
-		<File RelativePath="..\..\..\src\NWTC_Library\SysIVF.f90"/></Filter>
+		<File RelativePath="..\..\..\subs\FAST\subs\NWTC_Library\source\ModMesh.f90"/>
+		<File RelativePath="..\..\..\subs\FAST\subs\NWTC_Library\source\ModMesh_Mapping.f90"/>
+		<File RelativePath="..\..\..\subs\FAST\subs\NWTC_Library\source\ModMesh_Types.f90"/>
+		<File RelativePath="..\..\..\subs\FAST\subs\NWTC_Library\source\NWTC_Base.f90"/>
+		<File RelativePath="..\..\..\subs\FAST\subs\NWTC_Library\source\NWTC_IO.f90"/>
+		<File RelativePath="..\..\..\subs\FAST\subs\NWTC_Library\source\NetLib\lapack\NWTC_LAPACK.f90"/>
+		<File RelativePath="..\..\..\subs\FAST\subs\NWTC_Library\source\NWTC_Library.f90"/>
+		<File RelativePath="..\..\..\subs\FAST\subs\NWTC_Library\source\NWTC_Library_Types.f90"/>
+		<File RelativePath="..\..\..\subs\FAST\subs\NWTC_Library\source\NWTC_Num.f90"/>
+		<File RelativePath="..\..\..\subs\FAST\subs\NWTC_Library\source\SingPrec.f90"/>
+		<File RelativePath="..\..\..\subs\FAST\subs\NWTC_Library\source\SysIVF.f90"/></Filter>
 		<File RelativePath="..\..\..\src\WakeDynamics\WakeDynamics.f90"/>
-		<File RelativePath="..\..\..\src\WakeDynamics\WakeDynamics_Driver.f90"/>
+		<File RelativePath="..\..\..\src\WakeDynamics\driver\WakeDynamics_Driver.f90"/>
 		<File RelativePath="..\..\..\src\WakeDynamics\WakeDynamics_IO.f90"/>
 		<File RelativePath="..\..\..\src\WakeDynamics\WakeDynamics_Registry.txt">
 			<FileConfiguration Name="Debug|Win32">
-				<Tool Name="VFCustomBuildTool" CommandLine="CALL RunRegistry.bat WakeDynamics" Description="Running Registry for WakeDynamics" Outputs="..\..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></FileConfiguration></File>
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat WakeDynamics" Description="Running Registry for WakeDynamics" Outputs="..\..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></FileConfiguration></File>
 		<File RelativePath="..\..\..\src\WakeDynamics\WakeDynamics_Types.f90"/>
-		<File RelativePath="..\..\..\src\WakeDynamics\WD_Driver_Subs.f90"/></Filter>
+		<File RelativePath="..\..\..\src\WakeDynamics\driver\WD_Driver_Subs.f90"/></Filter>
 		<File RelativePath=".\ReadMe.txt"/></Files>
 	<Globals/></VisualStudioProject>

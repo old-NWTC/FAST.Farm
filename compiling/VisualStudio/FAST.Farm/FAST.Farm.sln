@@ -8,7 +8,7 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "FAST.Farm", "FAST.Farm.vfpr
 		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9} = {1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}
 	EndProjectSection
 EndProject
-Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "FASTlib", "..\..\subs\FAST\Compiling\VisualStudio\FASTlib\FASTlib.vfproj", "{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}"
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "FASTlib", "..\..\..\subs\FAST\Compiling\VisualStudio\FASTlib\FASTlib.vfproj", "{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

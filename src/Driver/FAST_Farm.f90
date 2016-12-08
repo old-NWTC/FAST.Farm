@@ -30,21 +30,26 @@ PROGRAM FAST_Farm
    IMPLICIT NONE
 
    ! Local parameters:
-REAL(DbKi),             PARAMETER     :: t_initial = 0.0_DbKi                    ! Initial time
    
    ! Other/Misc variables
 INTEGER(IntKi)                        :: i_turb                                  ! current turbine number
 INTEGER(IntKi)                        :: n_t_global                              ! simulation time step, loop counter for global simulation
 INTEGER(IntKi)                        :: ErrStat                                 ! Error status
 CHARACTER(ErrMsgLen)                  :: ErrMsg                                  ! Error message
+real(dbki)                            :: interval
 
    ! data for restart:
+CHARACTER(1024)                       :: InputFileName                           ! Rootname of the checkpoint file
 CHARACTER(1024)                       :: CheckpointRoot                          ! Rootname of the checkpoint file
 CHARACTER(20)                         :: FlagArg                                 ! flag argument from command line
 INTEGER(IntKi)                        :: Restart_step                            ! step to start on (for restart) 
 
- type(farm_parametertype)             :: p  
-   
+! these should probably go in the FAST.Farm registry:
+type(All_FastFarm_Data)               :: farm  
+ 
+type(FWrap_InitInputType)             :: FWrap_InitInp
+type(FWrap_InitOutputType)            :: FWrap_InitOut
+
 !Note: Multiple entries in the same row implies that the operations can be done in parallel
 !FAST.Farm Driver
 !     Initialization:
@@ -83,44 +88,38 @@ INTEGER(IntKi)                        :: Restart_step                           
 !        Close Output File   
    
 
-   CALL NWTC_Init() ! open console for writing
+      ! Init NWTC_Library, display copyright and version information:
+   CALL FAST_ProgStart( Farm_Ver )
+
+   farm%p%NumTurbines = 0
    
-   
-   ProgName = 'FAST.Farm'
-   CheckpointRoot = ""
-   CALL CheckArgs( CheckpointRoot, ErrStat, Flag=FlagArg )  ! if ErrStat /= ErrID_None, we'll ignore and deal with the problem when we try to read the input file
+   InputFileName = "" ! make sure we don't think this is a "default" inputFileName if not specified on command line
+   CALL CheckArgs( InputFileName, ErrStat, Flag=FlagArg )  ! if ErrStat /= ErrID_None, we'll ignore and deal with the problem when we try to read the input file
       
    IF ( TRIM(FlagArg) == 'RESTART' ) THEN ! Restart from checkpoint file
+      CheckpointRoot = InputFileName
    !   CALL FAST_RestoreFromCheckpoint_Tary(t_initial, Restart_step, Turbine, CheckpointRoot, ErrStat, ErrMsg  )
    !      CALL CheckError( ErrStat, ErrMsg, 'during restore from checkpoint'  )           
    !   
    ELSE
       Restart_step = 0
       
-      call Farm_Initialize( p, ErrStat, ErrMsg )
+      call Farm_Initialize( farm, InputFileName, ErrStat, ErrMsg )
+         CALL CheckError( ErrStat, ErrMsg, 'during driver initialization' )
+            
       
+      DO i_turb = 1,farm%p%NumTurbines
+      !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      ! loose coupling
+      !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       
-   !   
-   !   DO i_turb = 1,NumTurbines
-   !      !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !      ! initialization
-   !      !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !      
-   !      CALL FAST_InitializeAll_T( t_initial, i_turb, Turbine(i_turb), ErrStat, ErrMsg )     ! bjj: we need to get the input files for each turbine (not necessarially the same one)
-   !      CALL CheckError( ErrStat, ErrMsg, 'during module initialization' )
-   !                     
-   !   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !   ! loose coupling
-   !   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !   
-   !      !...............................................................................................................................
-   !      ! Initialization: (calculate outputs based on states at t=t_initial as well as guesses of inputs and constraint states)
-   !      !...............................................................................................................................     
-   !      CALL FAST_Solution0_T( Turbine(i_turb), ErrStat, ErrMsg )
-   !      CALL CheckError( ErrStat, ErrMsg, 'during simulation initialization'  )
-   !   
-   !               
-   !   END DO
+         !...............................................................................................................................
+         ! Initialization: (calculate outputs based on states at t=t_initial as well as guesses of inputs and constraint states)
+         !...............................................................................................................................     
+         CALL FAST_Solution0_T( farm%FWrap(i_turb)%m%Turbine, ErrStat, ErrMsg )
+         CALL CheckError( ErrStat, ErrMsg, 'during simulation initialization'  )
+               
+      END DO
    END IF
    !
    !
@@ -166,51 +165,57 @@ INTEGER(IntKi)                        :: Restart_step                           
    !END DO ! n_t_global
    !
    !
-   !!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !!  Write simulation times and stop
-   !!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !
-   !DO i_turb = 1,NumTurbines
-   !   CALL ExitThisProgram_T( Turbine(i_turb), ErrID_None, i_turb==NumTurbines )
-   !END DO
+   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   !  Write simulation times and stop
+   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    
-!
-!CONTAINS
-!   !...............................................................................................................................
-!   SUBROUTINE CheckError(ErrID,Msg,ErrLocMsg)
-!   ! This subroutine sets the error message and level and cleans up if the error is >= AbortErrLev
-!   !...............................................................................................................................
-!
-!         ! Passed arguments
-!      INTEGER(IntKi), INTENT(IN)           :: ErrID       ! The error identifier (ErrStat)
-!      CHARACTER(*),   INTENT(IN)           :: Msg         ! The error message (ErrMsg)
-!      CHARACTER(*),   INTENT(IN), OPTIONAL :: ErrLocMsg   ! an optional message describing the location of the error
-!
-!      CHARACTER(1024)                      :: SimMsg      
-!      integer(IntKi)                       :: i_turb2
-!      
-!      
-!      IF ( ErrID /= ErrID_None ) THEN
-!         CALL WrScr( NewLine//TRIM(Msg)//NewLine )
-!         IF ( ErrID >= AbortErrLev ) THEN
-!            
-!            IF (PRESENT(ErrLocMsg)) THEN
-!               SimMsg = ErrLocMsg
-!            ELSE
-!               SimMsg = 'at simulation time '//TRIM(Num2LStr(Turbine(1)%m_FAST%t_global))//' of '//TRIM(Num2LStr(Turbine(1)%p_FAST%TMax))//' seconds'
-!            END IF
-!            
-!            DO i_turb2 = 1,NumTurbines
-!               CALL ExitThisProgram_T( Turbine(i_turb2), ErrID, i_turb2==NumTurbines, SimMsg )
-!            END DO
-!                        
-!         END IF
-!         
-!      END IF
-!
-!
-!   END SUBROUTINE CheckError   
-!   !............................................................................................................................... 
+   call FARM_End(farm, ErrStat, ErrMsg)
    
+   call Cleanup()
+   call NormStop()
+   
+CONTAINS
+   !...............................................................................................................................
+   SUBROUTINE CheckError(ErrID,Msg,ErrLocMsg)
+   ! This subroutine sets the error message and level and cleans up if the error is >= AbortErrLev
+   !...............................................................................................................................
+
+         ! Passed arguments
+      INTEGER(IntKi), INTENT(IN)           :: ErrID       ! The error identifier (ErrStat)
+      CHARACTER(*),   INTENT(IN)           :: Msg         ! The error message (ErrMsg)
+      CHARACTER(*),   INTENT(IN), OPTIONAL :: ErrLocMsg   ! an optional message describing the location of the error
+
+      CHARACTER(1024)                      :: SimMsg      
+      
+      INTEGER(IntKi)                        :: ErrStat2   ! Error status
+      CHARACTER(ErrMsgLen)                  :: ErrMsg2    ! Error message
+      
+      
+      IF ( ErrID /= ErrID_None ) THEN
+         CALL WrScr( NewLine//TRIM(Msg)//NewLine )
+         IF ( ErrID >= AbortErrLev ) THEN
+            
+            IF (PRESENT(ErrLocMsg)) THEN
+               SimMsg = ErrLocMsg
+            ELSE
+               ! make sure farm%FWrap() is allocated!
+               SimMsg = 'at simulation time '//TRIM(Num2LStr(farm%FWrap(1)%m%Turbine%m_FAST%t_global))//' of '//TRIM(Num2LStr(farm%FWrap(1)%m%Turbine%p_FAST%TMax))//' seconds'
+            END IF
+            
+            call FARM_End(farm, ErrStat2, ErrMsg2)                                 
+            call Cleanup()
+            call ProgAbort('', TrapErrors=.FALSE., TimeWait=3._ReKi )
+            
+         END IF
+         
+      END IF
+
+
+   END SUBROUTINE CheckError   
+   !............................................................................................................................... 
+   SUBROUTINE Cleanup()
+   
+      
+   END SUBROUTINE Cleanup
 END PROGRAM FAST_Farm
 !**********************************************************************************************************************************

@@ -12,24 +12,7 @@
 
 # ...... Include files (definitions from NWTC Library) ............................................................................
 include Registry_NWTC_Library.txt
-
-
-# ..... Initialization data .......................................................................................................
-# Define inputs that the initialization routine may need here:
-#   e.g., the name of the input file, the file root name, etc.
-#typedef FAST_Farm/Farm InitInputType CHARACTER(1024) InputFile  - - -   "Name of the input file; remove if there is no file" -
-
-# Define outputs from the initialization routine here:
-#typedef   ^               InitOutputType CHARACTER(ChanLen) WriteOutputHdr  {:} - -   "Names of the output-to-file channels" -
-#typedef   ^               InitOutputType CHARACTER(ChanLen) WriteOutputUnt  {:} - -   "Units of the output-to-file channels" -
-
-
-
-# ..... Misc/Optimization variables.................................................................................................
-# Define any data that are used only for efficiency purposes (these variables are not associated with time):
-#   e.g. indices for searching in an array, large arrays that are local variables in any routine called multiple times, etc.
-typedef    ^              MiscVarType          FAST_TurbineType     Turbine {:}- - -  "Data for each of the FAST instances" -
-
+usefrom FASTWrapper_Registry.txt
 
 # ..... Parameters ................................................................................................................
 # Define parameters here:
@@ -51,6 +34,25 @@ typedef  ^               ParameterType         CHARACTER(20)   OutFmt          -
 typedef  ^               ParameterType         CHARACTER(20)   OutFmt_t        -    - - "Format used for time channel in text tabular output; resulting field should be 10 characters" -
 typedef  ^               ParameterType         IntKi           FmtWidth        -    - - "width of the time OutFmt specifier" -
 typedef  ^               ParameterType         IntKi           TChanLen        -    - - "width of the time channel" -
+
+
+# ..... FASTWrapper data .......................................................................................................
+typedef    ^    FASTWrapper_Data  FWrap_ContinuousStateType x             -   -         -   "Continuous states"
+typedef    ^    ^                 FWrap_DiscreteStateType   xd            -   -         -   "Discrete states"
+typedef    ^    ^                 FWrap_ConstraintStateType z             -   -         -   "Constraint states"
+typedef    ^    ^                 FWrap_OtherStateType      OtherSt       -   -         -   "Other states"
+typedef    ^    ^                 FWrap_ParameterType       p             -   -         -   "Parameters"
+typedef    ^    ^                 FWrap_InputType           u             -   -         -   "System inputs"
+typedef    ^    ^                 FWrap_OutputType          y             -   -         -   "System outputs"
+typedef    ^    ^                 FWrap_MiscVarType         m             -   -         -   "Misc/optimization variables"
+typedef    ^    ^                 logical                   IsInitialized -   .FALSE.   -   "Has FWrap_Init been called"
+
+
+# ..... All submodules' variables.................................................................................................
+typedef    ^   All_FastFarm_Data  Farm_ParameterType        p          -   -   -   "FAST.Farm parameter data" -
+typedef    ^   All_FastFarm_Data  FASTWrapper_Data          FWrap     {:}  -   -   "FASTWrapper data (one instance per turbine)" -
+#typedef    ^   All_FastFarm_Data  AWAE_Data                 AWAE       -   -   -   "Ambient Wind & Array Effects (AWAE) data" -
+
 
 # ..... FAST.Farm data ................................................................................................................
 #
