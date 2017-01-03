@@ -58,7 +58,10 @@ typedef   ^               OtherStateType      IntKi    dummy   - - - "Remove thi
 # ..... Misc/Optimization variables.................................................................................................
 # Define any data that are used only for efficiency purposes (these variables are not associated with time):
 #   e.g. indices for searching in an array, large arrays that are local variables in any routine called multiple times, etc.
-typedef    ^              MiscVarType          FAST_TurbineType     Turbine -  -  -  "Data for this FAST instance" -
+typedef    ^              MiscVarType          FAST_TurbineType     Turbine     -   -  -  "Data for this FAST instance" -
+typedef    ^              MiscVarType          MeshType             TempDisp    {:} -  -  "temp displacement mesh (for AzimAvg_Ct)" -
+typedef    ^              MiscVarType          MeshType             ADRotorDisk {:} -  -  "Mesh that does not deflect with the blade (for AzimAvg_Ct)" -
+typedef    ^              MiscVarType          MeshMapType          AD_L2L      {:} -  -  "Map AD loads from deflected mesh to rotor-disk plane"
 
 
 # ..... Parameters ................................................................................................................
@@ -67,13 +70,13 @@ typedef    ^              MiscVarType          FAST_TurbineType     Turbine -  -
 typedef      ^            ParameterType       IntKi      nr                        -      -      -   "Number of radii in the radial finite-difference grid"      -
 typedef      ^            ParameterType       ReKi       r                        {:}     -      -   "Discretization of radial finite-difference grid"      m
 typedef      ^            ParameterType       IntKi      n_high_low                -      -      -   "Number of high-resolution time steps per low-resolution time step"      -
-typedef      ^            ParameterType       DbKi       dt_high                   -      -      -   "High-resolution time step"     s
-typedef      ^            ParameterType       IntKi      nX_high                   -      -      -   "Number of high-resolution spatial nodes in X direction"      -
-typedef      ^            ParameterType       IntKi      nY_high                   -      -      -   "Number of high-resolution spatial nodes in Y direction"      -
-typedef      ^            ParameterType       IntKi      nZ_high                   -      -      -   "Number of high-resolution spatial nodes in Z direction"      -
-typedef      ^            ParameterType       ReKi       X_high                   {:}     -      -   "X-component of the spatial discretization of the high-resolution spatial domain for this turbine"      m
-typedef      ^            ParameterType       ReKi       Y_high                   {:}     -      -   "Y-component of the spatial discretization of the high-resolution spatial domain for this turbine"      m
-typedef      ^            ParameterType       ReKi       Z_high                   {:}     -      -   "Z-component of the spatial discretization of the high-resolution spatial domain for this turbine"      m
+#typedef      ^            ParameterType       DbKi       dt_high                   -      -      -   "High-resolution time step"     s
+#typedef      ^            ParameterType       IntKi      nX_high                   -      -      -   "Number of high-resolution spatial nodes in X direction"      -
+#typedef      ^            ParameterType       IntKi      nY_high                   -      -      -   "Number of high-resolution spatial nodes in Y direction"      -
+#typedef      ^            ParameterType       IntKi      nZ_high                   -      -      -   "Number of high-resolution spatial nodes in Z direction"      -
+#typedef      ^            ParameterType       ReKi       X_high                   {:}     -      -   "X-component of the spatial discretization of the high-resolution spatial domain for this turbine"      m
+#typedef      ^            ParameterType       ReKi       Y_high                   {:}     -      -   "Y-component of the spatial discretization of the high-resolution spatial domain for this turbine"      m
+#typedef      ^            ParameterType       ReKi       Z_high                   {:}     -      -   "Z-component of the spatial discretization of the high-resolution spatial domain for this turbine"      m
 typedef      ^            ParameterType       IntKi      n_FAST_low                -      -      -   "Number of FAST time steps per low-resolution time step"      -
 typedef      ^            ParameterType       ReKi       p_ref_Turbine            {3}     -      -   "Undisplaced global position of this turbine"      m
 

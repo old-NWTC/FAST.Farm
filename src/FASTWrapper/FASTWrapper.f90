@@ -42,10 +42,9 @@ MODULE FASTWrapper
    PUBLIC :: FWrap_Init                           !  Initialization routine
    PUBLIC :: FWrap_End                            !  Ending routine (includes clean up)
 
-   PUBLIC :: FWrap_UpdateStates                   !  Loose coupling routine for solving for constraint states, integrating
-                                                  !    continuous states, and updating discrete states
-   PUBLIC :: FWrap_CalcOutput                     !  Routine for computing outputs
-
+   PUBLIC :: FWrap_t0                             !  call to compute outputs at t0 [and initialize some more variables]
+   PUBLIC :: FWrap_Increment                      !  call to update states to n+1 and compute outputs at n+1
+   
 
 CONTAINS
 !----------------------------------------------------------------------------------------------------------------------------------
@@ -77,6 +76,7 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
 
       ! local variables
    TYPE(FAST_ExternInitType)                       :: ExternInitData 
+   INTEGER(IntKi)                                  :: j,k,nb      
    
    INTEGER(IntKi)                                  :: ErrStat2    ! local error status
    CHARACTER(ErrMsgLen)                            :: ErrMsg2     ! local error message
@@ -114,15 +114,35 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       !.................
       ! Initialize an instance of FAST
       !................
+   
+         !.... Lidar data (unused) ....
       ExternInitData%Tmax = InitInp%TMax
       ExternInitData%SensorType = SensorType_None
       ExternInitData%LidRadialVel = .false.
+      
+         !.... supercontroller (currently unused) ....
       ExternInitData%NumSC2Ctrl = 0 ! "number of controller inputs [from supercontroller]"
       ExternInitData%NumCtrl2SC = 0 ! "number of controller outputs [to supercontroller]"
    
+         !.... multi-turbine options ....
       ExternInitData%TurbineID = InitInp%TurbNum
       ExternInitData%TurbinePos = InitInp%p_ref_Turbine
+      
       ExternInitData%FarmIntegration = .true.
+            
+         !.... 4D-wind data ....
+      ExternInitData%windGrid_n(1) = InitInp%nX_high
+      ExternInitData%windGrid_n(2) = InitInp%nY_high
+      ExternInitData%windGrid_n(3) = InitInp%nZ_high
+      ExternInitData%windGrid_n(4) = InitInp%dt_high
+      
+      ExternInitData%windGrid_delta(1) = InitInp%dX_high
+      ExternInitData%windGrid_delta(2) = InitInp%dY_high
+      ExternInitData%windGrid_delta(3) = InitInp%dZ_high
+      ExternInitData%windGrid_delta(4) = InitInp%dt_high
+      
+      ExternInitData%windGrid_pZero = InitInp%p_ref_high
+            
       
       CALL FAST_InitializeAll_T( t_initial, InitInp%TurbNum, m%Turbine, ErrStat2, ErrMsg2, InitInp%FASTInFile, ExternInitData ) 
          call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName) 
@@ -132,6 +152,16 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
          end if
          
       
+      !.................
+      ! Check that we've set up FAST properly:
+      !.................
+      if (m%Turbine%p_FAST%CompAero /= MODULE_AD) then
+         call SetErrStat(ErrID_Fatal,"AeroDyn (v15) must be used in each instance of FAST for FAST.Farm.",ErrStat,ErrMsg,RoutineName)
+         call cleanup()
+         return
+      end if
+      
+         
       !.................
       ! Define parameters here:
       !.................
@@ -143,6 +173,61 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
             return
          end if
          
+      !.................
+      ! Set outputs (allocate arrays and set miscVar meshes for computing other outputs):
+      !.................
+         
+      call AllocAry(y%Ct, p%nr, 'y%Ct (radial ct)', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+         
+      nb = size(m%Turbine%AD%y%BladeLoad)
+      Allocate( m%ADRotorDisk(nb), m%TempDisp(nb), m%AD_L2L(nb), STAT=ErrStat2 )
+      if (ErrStat2 /= 0) then
+         call SetErrStat(ErrID_Fatal,"Error allocating space for ADRotorDisk meshes.",ErrStat,ErrMsg,RoutineName)
+         call cleanup()
+         return
+      end if
+      
+      do k=1,nb
+         
+         call meshCopy(m%Turbine%AD%y%BladeLoad(k), m%TempDisp(k), MESH_COUSIN, ErrStat2, ErrMsg2)
+            call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+            
+         call MeshCreate ( BlankMesh         = m%ADRotorDisk(k) &
+                          ,IOS               = COMPONENT_OUTPUT &
+                          ,Nnodes            = p%nr             &
+                          ,ErrStat           = ErrStat2         &
+                          ,ErrMess           = ErrMsg2          &
+                          ,Force             = .true.           &
+                          ,Moment            = .true.           &
+                          ,TranslationDisp   = .true.           & ! only for loads transfer
+                          ,Orientation       = .true.           & ! only for loads transfer
+                         )
+               call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+
+            if (errStat >= AbortErrLev) exit
+            
+            ! set node initial position/orientation
+         ! shortcut for 
+         ! call MeshPositionNode(m%ADRotorDisk(k), j, r(j), errStat2, errMsg2)
+         m%ADRotorDisk(k)%Position = p%r ! this will get overwritten later, but we check that we have no zero-length elements in MeshCommit()
+         m%ADRotorDisk(k)%TranslationDisp = 0.0_R8Ki ! this happens by default, anyway....
+         
+            ! create line2 elements
+         do j=1,p%nr-1
+            call MeshConstructElement( m%ADRotorDisk(k), ELEMENT_LINE2, errStat2, errMsg2, p1=j, p2=j+1 )
+               call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         end do !j
+            
+         call MeshCommit(m%ADRotorDisk(k), errStat2, errMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+            if (errStat >= AbortErrLev) exit
+            
+         call MeshMapCreate(m%Turbine%AD%y%BladeLoad(k), m%ADRotorDisk(k), m%AD_L2L(k), ErrStat2, ErrMsg2,            
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+      end do
+      
+      call cleanup()
+      
 contains
    subroutine cleanup()
    
@@ -174,39 +259,36 @@ subroutine SetParameters(InitInp, p, dt_FAST, InitInp_dt, ErrStat, ErrMsg)
    p%p_ref_Turbine = InitInp%p_ref_Turbine  
    p%nr            = InitInp%nr              
    p%n_high_low    = InitInp%n_high_low  
-   p%dt_high       = InitInp%dt_high
-   p%nX_high       = InitInp%nX_high    
-   p%nY_high       = InitInp%nY_high    
-   p%nZ_high       = InitInp%nZ_high    
+   !p%dt_high       = InitInp%dt_high
+   !p%nX_high       = InitInp%nX_high    
+   !p%nY_high       = InitInp%nY_high    
+   !p%nZ_high       = InitInp%nZ_high    
 
    call AllocAry(p%r, p%nr, 'p%r (radial discretization)', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   call AllocAry(p%X_high, p%nX_high, 'p%X_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   call AllocAry(p%Y_high, p%nY_high, 'p%Y_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   call AllocAry(p%Z_high, p%nZ_high, 'p%Z_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+   !call AllocAry(p%X_high, p%nX_high, 'p%X_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+   !call AllocAry(p%Y_high, p%nY_high, 'p%Y_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+   !call AllocAry(p%Z_high, p%nZ_high, 'p%Z_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
 
    if (ErrStat>=AbortErrLev) return
    
-   do i=1,p%nr
+   do i=0,p%nr-1
       p%r(i) = i*InitInp%dr
    end do
    
    !BJJ: IT MIGHT be easier to just save the deltas so we can interpolate into these fields...
-   do i=1,p%nX_high
-      p%X_high(i) = InitInp%p_ref_high(1) + i*InitInp%dX_high
-   end do
-
-   do i=1,p%nY_high
-      p%Y_high(i) = InitInp%p_ref_high(2) + i*InitInp%dY_high
-   end do
+   !do i=1,p%nX_high
+   !   p%X_high(i) = InitInp%p_ref_high(1) + i*InitInp%dX_high
+   !end do
+   !
+   !do i=1,p%nY_high
+   !   p%Y_high(i) = InitInp%p_ref_high(2) + i*InitInp%dY_high
+   !end do
+   !
+   !do i=1,p%nZ_high
+   !   p%Z_high(i) = InitInp%p_ref_high(3) + i*InitInp%dZ_high
+   !end do
    
-   do i=1,p%nZ_high
-      p%Z_high(i) = InitInp%p_ref_high(3) + i*InitInp%dZ_high
-   end do
-   
-   ! this one will have to be set after we initialize FAST, because we need to know what the FAST time step is going to be.
-   !p%n_FAST_low   
-    
-    
+   ! this one will have to be set after we initialize FAST, because we need to know what the FAST time step is going to be.    
    IF ( EqualRealNos( dt_FAST, InitInp_dt ) ) THEN
       p%n_FAST_low = 1
    ELSE
@@ -296,16 +378,14 @@ SUBROUTINE FWrap_End( u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
 
 END SUBROUTINE FWrap_End
 !----------------------------------------------------------------------------------------------------------------------------------
-!> This is a loose coupling routine for solving constraint states, integrating continuous states, and updating discrete and other 
-!! states. Continuous, constraint, discrete, and other states are updated to values at t + Interval.
-SUBROUTINE FWrap_UpdateStates( t, n, Inputs, InputTimes, p, x, xd, z, OtherState, misc, ErrStat, ErrMsg )
+!> This routine updates states and outputs to n+1 based on inputs and states at n (this has an inherent time-step delay on outputs).
+!! The routine uses subcycles because FAST typically has a smaller time step than FAST.Farm.
+SUBROUTINE FWrap_Increment( t, n, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
 !..................................................................................................................................
 
    REAL(DbKi),                       INTENT(IN   ) :: t               !< Current simulation time in seconds
    INTEGER(IntKi),                   INTENT(IN   ) :: n               !< Current step of the simulation: t = n*Interval
-   TYPE(FWrap_InputType),            INTENT(INOUT) :: Inputs(:)       !< Inputs at InputTimes (output from this routine only 
-                                                                      !!  because of record keeping in routines that copy meshes)
-   REAL(DbKi),                       INTENT(IN   ) :: InputTimes(:)   !< Times in seconds associated with Inputs
+   TYPE(FWrap_InputType),            INTENT(INOUT) :: u               !< Inputs at t (not changed, but possibly copied)
    TYPE(FWrap_ParameterType),        INTENT(IN   ) :: p               !< Parameters
    TYPE(FWrap_ContinuousStateType),  INTENT(INOUT) :: x               !< Input: Continuous states at t;
                                                                       !!   Output: Continuous states at t + Interval
@@ -315,20 +395,19 @@ SUBROUTINE FWrap_UpdateStates( t, n, Inputs, InputTimes, p, x, xd, z, OtherState
                                                                       !!   Output: Constraint states at t + Interval
    TYPE(FWrap_OtherStateType),       INTENT(INOUT) :: OtherState      !< Other states: Other states at t;
                                                                       !!   Output: Other states at t + Interval
-   TYPE(FWrap_MiscVarType),          INTENT(INOUT) :: misc            !<  Misc variables for optimization (not copied in glue code)
+   TYPE(FWrap_OutputType),          INTENT(INOUT)  :: y               !< Outputs computed at t + Interval (Input only so that mesh con-
+                                                                      !!   nectivity information does not have to be recalculated)
+   TYPE(FWrap_MiscVarType),          INTENT(INOUT) :: m               !<  Misc variables for optimization (not copied in glue code)
    INTEGER(IntKi),                   INTENT(  OUT) :: ErrStat         !< Error status of the operation
    CHARACTER(*),                     INTENT(  OUT) :: ErrMsg          !< Error message if ErrStat /= ErrID_None
 
-      ! Local variables
-
-   TYPE(FWrap_ContinuousStateType)                 :: dxdt            ! Continuous state derivatives at t
-   TYPE(FWrap_DiscreteStateType)                   :: xd_t            ! Discrete states at t (copy)
-   TYPE(FWrap_ConstraintStateType)                 :: z_Residual      ! Residual of the constraint state functions (Z)
-   TYPE(FWrap_InputType)                           :: u               ! Instantaneous inputs
+      ! Local variables   
+   INTEGER(IntKi)                                  :: n_ss            ! sub-cycle loop
+   INTEGER(IntKi)                                  :: n_FAST          ! n for this FAST instance
    
    INTEGER(IntKi)                                  :: ErrStat2        ! local error status
    CHARACTER(ErrMsgLen)                            :: ErrMsg2         ! local error message
-   CHARACTER(*), PARAMETER                         :: RoutineName = 'Wrap_UpdateStates'
+   CHARACTER(*), PARAMETER                         :: RoutineName = 'FWrap_Increment'
 
 
       ! Initialize variables
@@ -336,117 +415,54 @@ SUBROUTINE FWrap_UpdateStates( t, n, Inputs, InputTimes, p, x, xd, z, OtherState
    ErrStat   = ErrID_None           ! no error has occurred
    ErrMsg    = ''
 
-
-   ! This subroutine contains an example of how the states could be updated. Developers will
-   ! want to adjust the logic as necessary for their own situations.
-
-
-   !!!
-   !!!! Get the inputs at time t, based on the array of values sent by the glue code:
-   !!!
-   !!!! before calling ExtrapInterp routine, memory in u must be allocated; we can do that with a copy:
-   !!!call FWrap_CopyInput( Inputs(1), u, MESH_NEWCOPY, ErrStat2, ErrMsg2 )
-   !!!   call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !!!   if ( ErrStat >= AbortErrLev ) then
-   !!!      call cleanup()       ! to avoid memory leaks, we have to destroy the local variables that may have allocatable arrays or meshes
-   !!!      return
-   !!!   end if
-   !!!
-   !!!call FWrap_Input_ExtrapInterp( Inputs, InputTimes, u, t, ErrStat2, ErrMsg2 )  
-   !!!   call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !!!   if ( ErrStat >= AbortErrLev ) then
-   !!!      call cleanup()
-   !!!      return
-   !!!   end if
-   !!!
-   !!!
-   !!!
-   !!!   ! Get first time derivatives of continuous states (dxdt):
-   !!!
-   !!!call FWrap_CalcContStateDeriv( t, u, p, x, xd, z, OtherState, misc, dxdt, ErrStat2, ErrMsg2 )
-   !!!   call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !!!   if ( ErrStat >= AbortErrLev ) then
-   !!!      call cleanup()
-   !!!      return
-   !!!   end if
-   !!!
-   !!!
-   !!!   ! Update discrete states:
-   !!!   !   Note that xd [discrete state] is changed in FWrap_UpdateDiscState() so xd will now contain values at t+Interval
-   !!!   !   We'll first make a copy that contains xd at time t, which will be used in computing the constraint states
-   !!!call FWrap_CopyDiscState( xd, xd_t, MESH_NEWCOPY, ErrStat2, ErrMsg2 )
-   !!!   call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !!!   if ( ErrStat >= AbortErrLev ) then
-   !!!      call cleanup()
-   !!!      return
-   !!!   end if
-   !!!
-   !!!call FWrap_UpdateDiscState( t, n, u, p, x, xd, z, OtherState, misc, ErrStat2, ErrMsg2 )
-   !!!   call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !!!   if ( ErrStat >= AbortErrLev ) then
-   !!!      call cleanup()
-   !!!      return
-   !!!   end if
-   !!!
-   !!!
-   !!!   ! Solve for the constraint states (z) here:
-   !!!
-   !!!   ! Iterate until the value is within a given tolerance.
-   !!!
-   !!!! DO 
-   !!!
-   !!!   call FWrap_CalcConstrStateResidual( t, u, p, x, xd_t, z, OtherState, misc, Z_Residual, ErrStat2, ErrMsg2 )
-   !!!      call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !!!      if ( ErrStat >= AbortErrLev ) then
-   !!!         call cleanup()
-   !!!         return
-   !!!      end if
-   !!!
-   !!!   !  z =
-   !!!
-   !!!! END DO
-   !!!
-   !!!
-   !!!
-   !!!   ! Integrate (update) continuous states (x) here:
-   !!!
-   !!!!x = function of dxdt and x
-   !!!
-   !!!
-   !!!   ! Destroy local variables before returning
-   !!!call cleanup()
+   IF ( n > m%Turbine%p_FAST%n_TMax_m1 - p%n_FAST_low ) THEN !finish 
+      
+      call setErrStat(ErrID_Fatal,"programming error: FAST.Farm has exceeded FAST's TMax",ErrStat,ErrMsg,RoutineName)
+      return
+      
+   ELSE
+      
+         ! set the inputs needed for FAST
+      call FWrap_SetInputs(u, m)
+      
+      ! call FAST p%n_FAST_low times:
+      do n_ss = 1, p%n_FAST_low
+         n_FAST = n*p%n_FAST_low + n_ss - 1
+         
+         CALL FAST_Solution_T( t_initial, n_FAST, m%Turbine, ErrStat2, ErrMsg2 )                  
+            call setErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+            if (ErrStat > AbortErrLev) return
+            
+      end do ! n_ss
+      
+      call FWrap_CalcOutput(p, u, y, m, ErrStat2, ErrMsg2)
+         call setErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+      
+   END IF
 
 
-CONTAINS
-   SUBROUTINE cleanup()
-   ! note that this routine inherits all of the data in Wrap_UpdateStates
-
-
-   CALL FWrap_DestroyInput(       u,          ErrStat2, ErrMsg2)
-   CALL FWrap_DestroyConstrState( Z_Residual, ErrStat2, ErrMsg2)
-   CALL FWrap_DestroyContState(   dxdt,       ErrStat2, ErrMsg2)
-   CALL FWrap_DestroyDiscState(   xd_t,       ErrStat2, ErrMsg2) 
-
-   END SUBROUTINE cleanup
-END SUBROUTINE FWrap_UpdateStates
+END SUBROUTINE FWrap_Increment
 !----------------------------------------------------------------------------------------------------------------------------------
-!> This is a routine for computing outputs, used in both loose and tight coupling.
-SUBROUTINE FWrap_CalcOutput( t, u, p, x, xd, z, OtherState, y, misc, ErrStat, ErrMsg )
+!> This routine calculates outputs at n=0 based on inputs at n=0.
+SUBROUTINE FWrap_t0( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
 !..................................................................................................................................
 
    REAL(DbKi),                      INTENT(IN   )  :: t           !< Current simulation time in seconds
-   TYPE(FWrap_InputType),           INTENT(IN   )  :: u           !< Inputs at t
+   TYPE(FWrap_InputType),           INTENT(INOUT)  :: u           !< Inputs at t
    TYPE(FWrap_ParameterType),       INTENT(IN   )  :: p           !< Parameters
    TYPE(FWrap_ContinuousStateType), INTENT(IN   )  :: x           !< Continuous states at t
    TYPE(FWrap_DiscreteStateType),   INTENT(IN   )  :: xd          !< Discrete states at t
    TYPE(FWrap_ConstraintStateType), INTENT(IN   )  :: z           !< Constraint states at t
    TYPE(FWrap_OtherStateType),      INTENT(IN   )  :: OtherState  !< Other states at t
-   TYPE(FWrap_MiscVarType),         INTENT(INOUT)  :: misc        !< Misc variables for optimization (not copied in glue code)
+   TYPE(FWrap_MiscVarType),         INTENT(INOUT)  :: m           !< Misc variables for optimization (not copied in glue code)
    TYPE(FWrap_OutputType),          INTENT(INOUT)  :: y           !< Outputs computed at t (Input only so that mesh con-
                                                                   !!   nectivity information does not have to be recalculated)
    INTEGER(IntKi),                  INTENT(  OUT)  :: ErrStat     !< Error status of the operation
    CHARACTER(*),                    INTENT(  OUT)  :: ErrMsg      !< Error message if ErrStat /= ErrID_None
 
+   INTEGER(IntKi)                                  :: ErrStat2    ! local error status
+   CHARACTER(ErrMsgLen)                            :: ErrMsg2     ! local error message
+   CHARACTER(*), PARAMETER                         :: RoutineName = 'FWrap_t0'
 
       ! Initialize ErrStat
 
@@ -454,12 +470,158 @@ SUBROUTINE FWrap_CalcOutput( t, u, p, x, xd, z, OtherState, y, misc, ErrStat, Er
    ErrMsg  = ''
 
 
-      ! Compute outputs here:
+      ! set the inputs needed for FAST:
+   call FWrap_SetInputs(u, m)
+      
+      ! compute the FAST t0 solution:
+   call FAST_Solution0_T(m%Turbine, ErrStat2, ErrMsg2 ) 
+      call setErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+      
+      ! set the outputs for FAST.Farm:
+   call FWrap_CalcOutput(p, u, y, m, ErrStat2, ErrMsg2)
+      call setErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
 
-
-END SUBROUTINE FWrap_CalcOutput
+   
+END SUBROUTINE FWrap_t0
 !----------------------------------------------------------------------------------------------------------------------------------
+!> This subroutine sets the FASTWrapper outputs based on what this instance of FAST computed.
+SUBROUTINE FWrap_CalcOutput(p, u, y, m, ErrStat, ErrMsg)
+
+   TYPE(FWrap_ParameterType),       INTENT(IN   )  :: p           !< Parameters
+   TYPE(FWrap_InputType),           INTENT(INOUT)  :: u           !< Inputs at t
+   TYPE(FWrap_MiscVarType),         INTENT(INOUT)  :: m           !< Misc variables for optimization (not copied in glue code)
+   TYPE(FWrap_OutputType),          INTENT(INOUT)  :: y           !< Outputs 
+   INTEGER(IntKi),                  INTENT(  OUT)  :: ErrStat     !< Error status of the operation
+   CHARACTER(*),                    INTENT(  OUT)  :: ErrMsg      !< Error message if ErrStat /= ErrID_None
+
+      ! Local variables   
+   REAL(ReKi)                                      :: x           ! velocity in x direction
+   REAL(ReKi)                                      :: y           ! velocity in y direction
+   REAL(ReKi)                                      :: num         ! numerator
+   REAL(ReKi)                                      :: denom       ! denominator
+   REAL(ReKi)                                      :: p0(3)       ! hub location (in FAST with 0,0,0 as turbine reference)
+   REAL(R8Ki)                                      :: theta(3)    
+   REAL(R8Ki)                                      :: orientation(3,3)    
+   
+   INTEGER(IntKi)                                  :: j, k        ! loop counters
+   
+   INTEGER(IntKi)                                  :: ErrStat2        ! local error status
+   CHARACTER(ErrMsgLen)                            :: ErrMsg2         ! local error message
+   CHARACTER(*), PARAMETER                         :: RoutineName = 'FWrap_Increment'
+   
+   integer, parameter                              :: indx = 1  ! m%BEMT_u(1) is at t; m%BEMT_u(2) is t+dt
+   
+      ! Initialize ErrStat
+
+   ErrStat = ErrID_None
+   ErrMsg  = ''
+
+      ! put this back!
+   call move_alloc(m%Turbine%IfW%m%FDext%V, u%V_high_dist)
+   
+   
+   ! Turbine-dependent commands to the super controller:
+   ! y%ToSC_Turbine(:) = 
+   
+   
+   ! ....... outputs from AeroDyn v15 ............
+   
+   ! note that anything that uses m%Turbine%AD%Input(1) assumes we have not updated these inputs after calling AD_CalcOutput in FAST.
+   
+   ! Orientation of rotor centerline, normal to disk:
+   y%xHat_Disk = m%Turbine%AD%Input(1)%HubMotion%Orientation(1,:,1) !actually also x_hat_disk and x_hat_hub
+   
+   
+   ! Nacelle-yaw error i.e. the angle about positive Z^ from the rotor centerline to the rotor-disk-averaged relative wind 
+   ! velocity (ambients + deficits + motion), both projected onto the horizontal plane, rad
+   
+      ! if the orientation of the rotor centerline or rotor-disk-averaged relative wind speed is directed vertically upward or downward (+/-Z^)
+      ! the nacelle-yaw error is undefined
+   if ( EqualRealNos(m%Turbine%AD%m%V_DiskAvg(1), 0.0_ReKi) .and. EqualRealNos(m%Turbine%AD%m%V_DiskAvg(2), 0.0_ReKi) ) then
+      call SetErrStat(ErrID_Fatal,"Nacelle-yaw error is undefined because the rotor-disk-averaged relative wind speed "// &
+                        "is directed vertically", ErrStat,ErrMsg,RoutineName) 
+   elseif ( EqualRealNos(y%xHat_Disk(1), 0.0_ReKi) .and. EqualRealNos(y%xHat_Disk(2), 0.0_ReKi) ) then
+      call SetErrStat(ErrID_Fatal,"Nacelle-yaw error is undefined because the rotor centerline "// &
+                        "is directed vertically", ErrStat,ErrMsg,RoutineName) 
+   else
+      y = m%Turbine%AD%m%V_DiskAvg(2) * y%xHat_Disk(1) - m%Turbine%AD%m%V_DiskAvg(1) * y%xHat_Disk(2) 
+      x = m%Turbine%AD%m%V_DiskAvg(1) * y%xHat_Disk(1) + m%Turbine%AD%m%V_DiskAvg(2) * y%xHat_Disk(2) 
+      
+      y%YawErr = atan2(y, x)
+   end if
+   
+      
+   ! Center position of hub, m
+   p0 = m%Turbine%AD%Input(1)%HubMotion%Position(:,1) + m%Turbine%AD%Input(1)HubMotion%TranslationDisp(:,1) 
+   y%p_hub = p%p_ref_Turbine + p0     
+   
+   ! Rotor diameter, m
+   y%D_rotor = 2.0_ReKi * maxval(m%Turbine%AD%m%BEMT_u(indx)%rLocal)
+
+   ! Rotor-disk-averaged relative wind speed (ambient + deficits + motion), normal to disk, m/s
+   y%DiskAvg_Vx_Rel = m%Turbine%AD%m%V_dot_x
+   
+   ! Azimuthally averaged thrust force coefficient (normal to disk), distributed radially
+   !bjj: FIX ME!!!!!
+   !y%AzimAvg_Ct  = 0 !               {:}    
+      
+   theta = 0.0_ReKi
+   do k=1,size(m%ADRotorDisk)
+            
+      m%TempDisp(k)%RefOrientation = m%Turbine%AD%y%BladeLoad(k)%Orientation      
+      m%TempDisp(k)%Position       = m%Turbine%AD%y%BladeLoad(k)%Position + m%Turbine%AD%y%BladeLoad(k)%TranslationDisp     
+     !m%TempDisp(k)%TranslationDisp = 0.0_R8Ki
+      
+      theta(1) = m%Turbine%AD%m%hub_theta_x_root(k)
+      orientation = EulerConstruct( theta )
+      m%ADRotorDisk(k)%RefOrientation(:,:,1) = matmul(orientation, m%Turbine%AD%Input(1)HubMotion%Orientation%(:,:,1) )
+      do j=1,p%nr
+         m%ADRotorDisk(k)%RefOrientation(:,:,j) = m%ADRotorDisk(k)%RefOrientation(:,:,1)
+         m%ADRotorDisk(k)%Position(:,j) = p0 + p%r(j)*m%ADRotorDisk(k)%RefOrientation(3,:,1)
+      end do
+     !m%ADRotorDisk(k)%TranslationDisp = 0.0_ReKi
+      m%ADRotorDisk(k)%RemapFlag = .true.
+   
+      call transfer_line2_to_line2(m%Turbine%AD%y%BladeLoad(k), m%ADRotorDisk(k), m%AD_L2L, ErrStat2, ErrMsg2, m%TempDisp(k), m%ADRotorDisk(k))
+         call setErrStat(ErrStat2,ErrMsg2,ErrStat2,ErrMsg,RoutineName)
+         if (ErrStat >= AbortErrLev) return
+   end do
+         
+   y%AzimAvg_Ct(1) = 0.0_ReKi
+   do j=2,p%nr
+         
+      if (EqualRealNos(y%DiskAvg_Vx_Rel,0.0_ReKi)) then
+         y%AzimAvg_Ct(j) = 0.0_ReKi
+      else
+         num = 0.0_ReKi
+         do k=1,size(m%ADRotorDisk)
+            num   =  num + dot_product( y%xHat_Disk, m%ADRotorDisk(k)%Force(:,j) )
+         end do
+         
+         denom = m%Turbine%AD%p%AirDens * pi * p%r(j) * y%DiskAvg_Vx_Rel**2
+            
+         y%AzimAvg_Ct(j) = num / denom
+      end if
+         
+   end do     
+      
+END SUBROUTINE FWrap_SetOutputs
+!----------------------------------------------------------------------------------------------------------------------------------
+!> This subroutine sets the inputs needed before calling an instance of FAST
+SUBROUTINE FWrap_SetInputs(u, m)
+
+   TYPE(FWrap_InputType),           INTENT(INOUT)  :: u           !< Inputs at t
+   TYPE(FWrap_MiscVarType),         INTENT(INOUT)  :: m           !< Misc variables for optimization (not copied in glue code)
 
 
+   ! set the 4d-wind-inflow input array (a bit of a hack [simplification] so that we don't have large amounts of data copied in multiple data structures):
+      call move_alloc(u%V_high_dist, m%Turbine%IfW%m%FDext%V)
+      m%Turbine%IfW%m%FDext%TgridStart = t !bjj: is this correct?????
+      
+   ! do something with the inputs from the super-controller:
+      
+   
+END SUBROUTINE FWrap_SetInputs
+!----------------------------------------------------------------------------------------------------------------------------------
 END MODULE FASTWrapper
 !**********************************************************************************************************************************
