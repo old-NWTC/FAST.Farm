@@ -1,0 +1,153 @@
+3239680	__tmainCRTStartup:
+3239680	push ebp
+3239681	mov ebp, esp
+3239683	push 0xfffffffe
+3239685	push 0x7774c8
+3239690	push 0x717ff0
+3239695	mov eax, dword ptr fs:[0x0]
+3239701	push eax
+3239702	add esp, 0xffffffe4
+3239705	push ebx
+3239706	push esi
+3239707	push edi
+3239708	mov eax, dword ptr [0x783040]
+3239713	xor dword ptr [ebp-0x8], eax
+3239716	xor eax, ebp
+3239718	push eax
+3239719	lea eax, ptr [ebp-0x10]
+3239722	mov dword ptr fs:[0x0], eax
+3239728	mov dword ptr [ebp-0x18], esp
+3239731	mov dword ptr [ebp-0x4], 0x0
+3239738	mov dword ptr [ebp-0x1c], 0x0
+3239745	call 0x316ef0 <_NtCurrentTeb>
+3239750	mov eax, dword ptr [eax+0x4]
+3239753	mov dword ptr [ebp-0x20], eax
+3239756	mov dword ptr [ebp-0x24], 0x0
+3239763	mov ecx, dword ptr [ebp-0x20]
+3239766	mov edx, 0x7c6e70
+3239771	xor eax, eax
+3239773	lock cmpxchg dword ptr [edx], ecx
+3239777	mov dword ptr [ebp-0x1c], eax
+3239780	cmp dword ptr [ebp-0x1c], 0x0
+3239784	jz 0x316f7d
+3239786	mov eax, dword ptr [ebp-0x1c]
+3239789	cmp eax, dword ptr [ebp-0x20]
+3239792	jnz 0x316f7b
+3239794	mov dword ptr [ebp-0x24], 0x1
+3239801	jmp 0x316f7d
+3239803	jmp 0x316f53
+3239805	cmp dword ptr [0x7c6e74], 0x1
+3239812	jnz 0x316f92
+3239814	push 0x1f
+3239816	call 0x3179fa <__amsg_exit>
+3239821	add esp, 0x4
+3239824	jmp 0x316fdd
+3239826	cmp dword ptr [0x7c6e74], 0x0
+3239833	jnz 0x316fd3
+3239835	mov dword ptr [0x7c6e74], 0x1
+3239845	push 0x71a368
+3239850	push 0x71a358
+3239855	call 0x317fdc <__initterm_e>
+3239860	add esp, 0x8
+3239863	test eax, eax
+3239865	jz 0x316fd1
+3239867	mov dword ptr [ebp-0x2c], 0xff
+3239874	mov dword ptr [ebp-0x4], 0xfffffffe
+3239881	mov eax, dword ptr [ebp-0x2c]
+3239884	jmp 0x317125
+3239889	jmp 0x316fdd
+3239891	mov dword ptr [0x7c6340], 0x1
+3239901	cmp dword ptr [0x7c6e74], 0x1
+3239908	jnz 0x317002
+3239910	push 0x71a354
+3239915	push 0x71a348
+3239920	call 0x317fe2 <__initterm>
+3239925	add esp, 0x8
+3239928	mov dword ptr [0x7c6e74], 0x2
+3239938	cmp dword ptr [0x7c6e74], 0x2
+3239945	jz 0x317032
+3239947	push 0x774cc0
+3239952	push 0x774d10
+3239957	push 0x0
+3239959	push 0x229
+3239964	push 0x774d18
+3239969	push 0x2
+3239971	call dword ptr [0x71a10c]
+3239977	add esp, 0x18
+3239980	cmp eax, 0x1
+3239983	jnz 0x317032
+3239985	int3 
+3239986	cmp dword ptr [ebp-0x24], 0x0
+3239990	jnz 0x317041
+3239992	xor edx, edx
+3239994	mov eax, 0x7c6e70
+3239999	xchg dword ptr [eax], edx
+3240001	cmp dword ptr [0x7c6e80], 0x0
+3240008	jz 0x317067
+3240010	push 0x7c6e80
+3240015	call 0x317aa0 <__IsNonwritableInCurrentImage>
+3240020	add esp, 0x4
+3240023	test eax, eax
+3240025	jz 0x317067
+3240027	push 0x0
+3240029	push 0x2
+3240031	push 0x0
+3240033	call dword ptr [0x7c6e80]
+3240039	push 0x1
+3240041	call dword ptr [0x71a108]
+3240047	add esp, 0x4
+3240050	mov ecx, dword ptr [0x71a0e8]
+3240056	mov edx, dword ptr [0x7c6354]
+3240062	mov dword ptr [ecx], edx
+3240064	mov eax, dword ptr [0x7c6354]
+3240069	push eax
+3240070	mov ecx, dword ptr [0x7c6350]
+3240076	push ecx
+3240077	mov edx, dword ptr [0x7c634c]
+3240083	push edx
+3240084	call 0x313cc0 <_main>
+3240089	add esp, 0xc
+3240092	mov dword ptr [0x7c6344], eax
+3240097	cmp dword ptr [0x7c6348], 0x0
+3240104	jnz 0x3170b6
+3240106	mov eax, dword ptr [0x7c6344]
+3240111	push eax
+3240112	call dword ptr [0x71a104]
+3240118	cmp dword ptr [0x7c6340], 0x0
+3240125	jnz 0x3170c5
+3240127	call dword ptr [0x71a0fc]
+3240133	mov dword ptr [ebp-0x4], 0xfffffffe
+3240140	jmp 0x317120
+3240142	mov ecx, dword ptr [ebp-0x14]
+3240145	mov edx, dword ptr [ecx]
+3240147	mov eax, dword ptr [edx]
+3240149	mov dword ptr [ebp-0x28], eax
+3240152	mov ecx, dword ptr [ebp-0x14]
+3240155	push ecx
+3240156	mov edx, dword ptr [ebp-0x28]
+3240159	push edx
+3240160	call 0x3179f4 <__XcptFilter>
+3240165	add esp, 0x8
+3240168	ret 
+3240169	mov esp, dword ptr [ebp-0x18]
+3240172	mov eax, dword ptr [ebp-0x28]
+3240175	mov dword ptr [0x7c6344], eax
+3240180	cmp dword ptr [0x7c6348], 0x0
+3240187	jnz 0x31710a
+3240189	mov ecx, dword ptr [0x7c6344]
+3240195	push ecx
+3240196	call dword ptr [0x71a100]
+3240202	cmp dword ptr [0x7c6340], 0x0
+3240209	jnz 0x317119
+3240211	call dword ptr [0x71a0fc]
+3240217	mov dword ptr [ebp-0x4], 0xfffffffe
+3240224	mov eax, dword ptr [0x7c6344]
+3240229	mov ecx, dword ptr [ebp-0x10]
+3240232	mov dword ptr fs:[0x0], ecx
+3240239	pop ecx
+3240240	pop edi
+3240241	pop esi
+3240242	pop ebx
+3240243	mov esp, ebp
+3240245	pop ebp
+3240246	ret 

@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feedback>
+ <message severity="info">Analysis started...</message>
+ <nop/>
+ <message severity="info">Result file: C:\Dev\FAST.Farm\compiling\Visual Studio\WakeDynamicsDriver\My Inspector Results - WakeDynamics_Driver\r001mi3\r001mi3.inspxe </message>
+ <nop/>
+ <message severity="info">Analysis started for C:\Dev\FAST.Farm\bin\WakeDynamics_Driver.exe (pid = 10556) </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Dev\FAST.Farm\bin\WakeDynamics_Driver.exe, address range [0xfc0000-0x13acfff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\KERNELBASE.dll, address range [0x74f80000-0x74fc6fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\kernel32.dll, address range [0x74fe0000-0x750effff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\SysWOW64\ntdll.dll, address range [0x77620000-0x7779ffff] </message>
+ <nop/>
+ <message severity="info">Loaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\compiler\libifcoremdd.dll, address range [0xf650000-0xf794fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\compiler\libmmd.dll, address range [0x3210000-0x363cfff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\imagehlp.dll, address range [0x75100000-0x7512afff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\msvcrt.dll, address range [0x753c0000-0x7546bfff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\ADVAPI32.dll, address range [0x76970000-0x76a10fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\SysWOW64\sechost.dll, address range [0x75130000-0x75148fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\RPCRT4.dll, address range [0x76ba0000-0x76c8ffff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\SspiCli.dll, address range [0x74f10000-0x74f6ffff], minimal analysis </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\CRYPTBASE.dll, address range [0x74f00000-0x74f0bfff] </message>
+ <nop/>
+ <message severity="info">Loaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\compiler\libifportMD.dll, address range [0xf930000-0xf97afff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\USER32.dll, address range [0x76fc0000-0x770bffff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\GDI32.dll, address range [0x755d0000-0x7565ffff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\LPK.dll, address range [0x76d70000-0x76d79fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\USP10.dll, address range [0x75320000-0x753bcfff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\system32\MSVCR120D.dll, address range [0x3930000-0x3aeefff] </message>
+ <nop/>
+ <message severity="info">Loaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\mkl\mkl_sequential.dll, address range [0xf0d0000-0xf407fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\mkl\mkl_core.dll, address range [0xfba0000-0x109b1fff], minimal analysis </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\system32\IMM32.DLL, address range [0x76a20000-0x76a7ffff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\MSCTF.dll, address range [0x75150000-0x7521bfff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\PROGRA~2\Avecto\PRIVIL~1\PGHook.dll, address range [0x74970000-0x749adfff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\PSAPI.DLL, address range [0x76a80000-0x76a84fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\system32\dbghelp.dll, address range [0x74880000-0x7496afff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\SysWOW64\nvinit.dll, address range [0x74850000-0x74878fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Program Files (x86)\NVIDIA Corporation\CoProcManager\detoured.dll, address range [0xf000000-0xf005fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Program Files (x86)\NVIDIA Corporation\CoProcManager\nvd3d9wrap.dll, address range [0x6df10000-0x6df3bfff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\SETUPAPI.dll, address range [0x76570000-0x7670cfff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\CFGMGR32.dll, address range [0x755a0000-0x755c6fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\OLEAUT32.dll, address range [0x75500000-0x75590fff], minimal analysis </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\ole32.dll, address range [0x76410000-0x7656cfff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Windows\syswow64\DEVOBJ.dll, address range [0x76b20000-0x76b31fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\Program Files (x86)\NVIDIA Corporation\CoProcManager\nvdxgiwrap.dll, address range [0x6def0000-0x6df0ffff] </message>
+ <nop/>
+ <message severity="info">Loaded module: C:\PROGRA~2\Sophos\SOPHOS~1\SOPHOS~1.DLL, address range [0x744d0000-0x74515fff] </message>
+ <nop/>
+ <message severity="info">Loaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\mkl\libimalloc.dll, address range [0x72300000-0x72303fff] </message>
+ <nop/>
+ <message severity="info">Unloaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\mkl\libimalloc.dll </message>
+ <nop/>
+ <message severity="info">Process C:\Dev\FAST.Farm\bin\WakeDynamics_Driver.exe exited with code 0. Leak analysis starting. Please wait... </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Dev\FAST.Farm\bin\WakeDynamics_Driver.exe </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\KERNELBASE.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\kernel32.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\SysWOW64\ntdll.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\compiler\libifcoremdd.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\compiler\libmmd.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\imagehlp.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\msvcrt.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\ADVAPI32.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\SysWOW64\sechost.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\RPCRT4.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\SspiCli.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\CRYPTBASE.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\compiler\libifportMD.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\USER32.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\GDI32.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\LPK.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\USP10.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\system32\MSVCR120D.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\mkl\mkl_sequential.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\mkl\mkl_core.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\system32\IMM32.DLL </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\MSCTF.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\PROGRA~2\Avecto\PRIVIL~1\PGHook.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\PSAPI.DLL </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\system32\dbghelp.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\SysWOW64\nvinit.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Program Files (x86)\NVIDIA Corporation\CoProcManager\detoured.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Program Files (x86)\NVIDIA Corporation\CoProcManager\nvd3d9wrap.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\SETUPAPI.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\CFGMGR32.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\OLEAUT32.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\ole32.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Windows\syswow64\DEVOBJ.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\Program Files (x86)\NVIDIA Corporation\CoProcManager\nvdxgiwrap.dll </message>
+ <nop/>
+ <message severity="info">Unloaded module: C:\PROGRA~2\Sophos\SOPHOS~1\SOPHOS~1.DLL </message>
+ <nop/>
+ <message severity="info">Completed analysis for C:\Dev\FAST.Farm\bin\WakeDynamics_Driver.exe </message>
+ <nop/>
+ <message severity="info">Application exit code: 0 </message>
+ <nop/>
+ <message severity="info">Result file: C:\Dev\FAST.Farm\compiling\Visual Studio\WakeDynamicsDriver\My Inspector Results - WakeDynamics_Driver\r001mi3\r001mi3.inspxe </message>
+ <nop/>
+ <message severity="info">Analysis completed</message>
+ <nop/>
+</feedback>

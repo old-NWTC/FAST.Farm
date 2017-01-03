@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="utf-8"?>
+<log version="1.0" tool="runtool">
+
+<msg id="1" tool="runtool">
+  <type>log-start</type>
+  <arg>2016/11/10 13:42:06</arg>
+</msg>
+<msg id="2" tool="runtool">
+  <type>collector-starts</type>
+</msg>
+<msg id="3" tool="runtool">
+  <type>marker-file</type>
+  <arg>C:\Dev\FAST.Farm\compiling\Visual Studio\WakeDynamicsDriver\My Inspector Results - WakeDynamics_Driver\r000mi1\r000mi1.inspxe</arg>
+</msg>
+<msg id="4" tool="mc">
+  <type>EXEC_OF_INTEREST</type>
+  <arg>C:\Dev\FAST.Farm\bin\WakeDynamics_Driver.exe</arg>
+  <arg>12048</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="5" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Dev\FAST.Farm\bin\WakeDynamics_Driver.exe</arg>
+  <arg>0x2e0000</arg>
+  <arg>0x6ccfff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="6" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\KERNELBASE.dll</arg>
+  <arg>0x74f80000</arg>
+  <arg>0x74fc6fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="7" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\kernel32.dll</arg>
+  <arg>0x74fe0000</arg>
+  <arg>0x750effff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="8" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\SysWOW64\ntdll.dll</arg>
+  <arg>0x77620000</arg>
+  <arg>0x7779ffff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="9" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\compiler\libifcoremdd.dll</arg>
+  <arg>0xf860000</arg>
+  <arg>0xf9a4fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="10" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\compiler\libmmd.dll</arg>
+  <arg>0xfba0000</arg>
+  <arg>0xffccfff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="11" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Windows\syswow64\imagehlp.dll</arg>
+  <arg>0x75100000</arg>
+  <arg>0x7512afff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="12" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\msvcrt.dll</arg>
+  <arg>0x753c0000</arg>
+  <arg>0x7546bfff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="13" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\ADVAPI32.dll</arg>
+  <arg>0x76970000</arg>
+  <arg>0x76a10fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="14" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Windows\SysWOW64\sechost.dll</arg>
+  <arg>0x75130000</arg>
+  <arg>0x75148fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="15" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\RPCRT4.dll</arg>
+  <arg>0x76ba0000</arg>
+  <arg>0x76c8ffff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="16" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\SspiCli.dll</arg>
+  <arg>0x74f10000</arg>
+  <arg>0x74f6ffff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="17" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\CRYPTBASE.dll</arg>
+  <arg>0x74f00000</arg>
+  <arg>0x74f0bfff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="18" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\compiler\libifportMD.dll</arg>
+  <arg>0x12a0000</arg>
+  <arg>0x12eafff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="19" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\USER32.dll</arg>
+  <arg>0x76fc0000</arg>
+  <arg>0x770bffff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="20" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\GDI32.dll</arg>
+  <arg>0x755d0000</arg>
+  <arg>0x7565ffff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="21" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Windows\syswow64\LPK.dll</arg>
+  <arg>0x76d70000</arg>
+  <arg>0x76d79fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:08 2017</timestamp>
+</msg>
+<msg id="22" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\USP10.dll</arg>
+  <arg>0x75320000</arg>
+  <arg>0x753bcfff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="23" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Windows\system32\MSVCR120D.dll</arg>
+  <arg>0x3290000</arg>
+  <arg>0x344efff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="24" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\mkl\mkl_sequential.dll</arg>
+  <arg>0x3470000</arg>
+  <arg>0x37a7fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="25" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017\windows\redist\ia32\mkl\mkl_core.dll</arg>
+  <arg>0x51b0000</arg>
+  <arg>0x5fc1fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="26" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\system32\IMM32.DLL</arg>
+  <arg>0x76a20000</arg>
+  <arg>0x76a7ffff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="27" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\MSCTF.dll</arg>
+  <arg>0x75150000</arg>
+  <arg>0x7521bfff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="28" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\PROGRA~2\Avecto\PRIVIL~1\PGHook.dll</arg>
+  <arg>0x74970000</arg>
+  <arg>0x749adfff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="29" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Windows\syswow64\PSAPI.DLL</arg>
+  <arg>0x76a80000</arg>
+  <arg>0x76a84fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="30" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\system32\dbghelp.dll</arg>
+  <arg>0x74880000</arg>
+  <arg>0x7496afff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="31" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Windows\SysWOW64\nvinit.dll</arg>
+  <arg>0x74850000</arg>
+  <arg>0x74878fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="32" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Program Files (x86)\NVIDIA Corporation\CoProcManager\detoured.dll</arg>
+  <arg>0xf000000</arg>
+  <arg>0xf005fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="33" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Program Files (x86)\NVIDIA Corporation\CoProcManager\nvd3d9wrap.dll</arg>
+  <arg>0x6df10000</arg>
+  <arg>0x6df3bfff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="34" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Windows\syswow64\SETUPAPI.dll</arg>
+  <arg>0x76570000</arg>
+  <arg>0x7670cfff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="35" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Windows\syswow64\CFGMGR32.dll</arg>
+  <arg>0x755a0000</arg>
+  <arg>0x755c6fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="36" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\OLEAUT32.dll</arg>
+  <arg>0x75500000</arg>
+  <arg>0x75590fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="37" tool="mc">
+  <type>MODULE_LOAD_NO_ANALYSIS</type>
+  <arg>C:\Windows\syswow64\ole32.dll</arg>
+  <arg>0x76410000</arg>
+  <arg>0x7656cfff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="38" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Windows\syswow64\DEVOBJ.dll</arg>
+  <arg>0x76b20000</arg>
+  <arg>0x76b31fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="39" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\Program Files (x86)\NVIDIA Corporation\CoProcManager\nvdxgiwrap.dll</arg>
+  <arg>0x6def0000</arg>
+  <arg>0x6df0ffff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="40" tool="mc">
+  <type>MODULE_LOAD</type>
+  <arg>C:\PROGRA~2\Sophos\SOPHOS~1\SOPHOS~1.DLL</arg>
+  <arg>0x744d0000</arg>
+  <arg>0x74515fff</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="41" tool="mc">
+  <type>PROCESS_COMPLETE</type>
+  <arg>C:\Dev\FAST.Farm\bin\WakeDynamics_Driver.exe</arg>
+  <arg>0</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="42" tool="mc">
+  <type>ANALYSIS_COMPLETE</type>
+  <arg>C:\Dev\FAST.Farm\bin\WakeDynamics_Driver.exe</arg>
+  <severity>INFO</severity>
+  <timestamp>Tue Feb  7 13:42:09 2017</timestamp>
+</msg>
+<msg id="43" tool="runtool">
+  <type>app-exit-code</type>
+  <arg>0</arg>
+</msg>
+<msg id="44" tool="runtool">
+  <type>marker-file</type>
+  <arg>C:\Dev\FAST.Farm\compiling\Visual Studio\WakeDynamicsDriver\My Inspector Results - WakeDynamics_Driver\r000mi1\r000mi1.inspxe</arg>
+</msg>
+<msg id="45" tool="runtool">
+  <type>collector-done</type>
+</msg>
+<msg id="46" tool="runtool">
+  <type>log-end</type>
+  <arg>2016/11/10 13:42:13</arg>
+</msg>
+
+</log>
+

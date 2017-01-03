@@ -1,0 +1,117 @@
+-r
+C:\Dev\FAST.Farm\compiling\Visual Studio\WakeDynamicsDriver\My Amplifier XE Results - WakeDynamics_Driver\r000hs
+--stack-stitching
+--data-limit-mb=500
+--disk-space-limit=100
+--itt-config=frame
+--stackwalk=offline
+--mrte-mode=native
+--type=cpu:counters:nostack
+--type=cpu:stack
+--interval=10
+--search-dir
+sym=C:\Dev\FAST.Farm\compiling\Visual Studio\WakeDynamicsDriver
+--search-dir
+sym=srv*C:\Users\ghayman\AppData\Local\Temp\1\SymbolCache
+--search-dir
+sym=srv*C:\Users\ghayman\AppData\Local\Temp\1\SymbolCache*http://msdl.microsoft.com/download/symbols
+--search-dir
+bin=C:\Dev\FAST.Farm\compiling\Visual Studio\WakeDynamicsDriver
+--search-dir
+bin=C:/Dev\FAST.Farm\compiling\Visual Studio\WakeDynamicsDriver\$(VC_ExecutablePath_x86)
+--search-dir
+bin=C:/Dev\FAST.Farm\compiling\Visual Studio\WakeDynamicsDriver\$(WindowsSDK_ExecutablePath)
+--search-dir
+bin=C:/Dev\FAST.Farm\compiling\Visual Studio\WakeDynamicsDriver\$(VS_ExecutablePath)
+--search-dir
+bin=C:/Dev\FAST.Farm\compiling\Visual Studio\WakeDynamicsDriver\$(MSBuild_ExecutablePath)
+--search-dir
+bin=C:\Windows\SysWow64
+--search-dir
+bin=C:\Program Files (x86)\Microsoft Visual Studio 12.0\Team Tools\Static Analysis Tools\FxCop
+--search-dir
+bin=C:\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\NativeBinaries\x86
+--search-dir
+bin=c:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017.1.143\windows\mpi\intel64\bin
+--search-dir
+bin=C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2017.0.109\windows\mpi\intel64\bin
+--search-dir
+bin=c:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\intel64_win\mpirt
+--search-dir
+bin=c:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\ia32_win\mpirt
+--search-dir
+bin=c:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\intel64_win\compiler
+--search-dir
+bin=c:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\ia32_win\compiler
+--search-dir
+bin=c:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\intel64\mpirt
+--search-dir
+bin=c:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\intel64\compiler
+--search-dir
+bin=c:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\ia32\mpirt
+--search-dir
+bin=c:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\ia32\compiler
+--search-dir
+bin=C:\Program Files (x86)\iis express\PHP\v5.4
+--search-dir
+bin=C:\Dev\LaPack\x64
+--search-dir
+bin=C:\Rtools\mingw_64\bin
+--search-dir
+bin=C:\Program Files\Java\jdk1.8.0_45\bin
+--search-dir
+bin=C:\ProgramData\Oracle\Java\javapath
+--search-dir
+bin=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\bin
+--search-dir
+bin=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\libnvvp
+--search-dir
+bin=C:\Windows\system32
+--search-dir
+bin=C:\Windows
+--search-dir
+bin=C:\Windows\System32\Wbem
+--search-dir
+bin=C:\Windows\System32\WindowsPowerShell\v1.0
+--search-dir
+bin=C:\Program Files\MATLAB\R2014b\bin
+--search-dir
+bin=C:\Program Files\MATLAB\R2014a\bin
+--search-dir
+bin=C:\Program Files\Microsoft SQL Server\110\Tools\Binn
+--search-dir
+bin=C:\Program Files (x86)\Microsoft SDKs\TypeScript\1.0
+--search-dir
+bin=C:\Program Files\SourceGear\Common\DiffMerge
+--search-dir
+bin=C:\Program Files\doxygen\bin
+--search-dir
+bin=C:\Anaconda
+--search-dir
+bin=C:\Anaconda\Scripts
+--search-dir
+bin=c:\Program Files\TortoiseSVN\bin
+--search-dir
+bin=C:
+--search-dir
+bin=C:\Program Files\MySQL\MySQL Server 5.1\bin
+--search-dir
+bin=C:\Program Files\Perforce\DVCS
+--search-dir
+bin=C:\Dev\cmake-3.5.2-win32-x86\bin
+--search-dir
+bin=C:\Program Files (x86)\Internet Explorer
+--search-dir
+bin=C:\Program Files (x86)\Windows Kits\8.1\Windows Performance Toolkit
+--search-dir
+bin=C:\Users\ghayman\AppData\Local\Programs\Git\cmd
+--search-dir
+bin=C:\Program Files (x86)\Intel\Composer XE 2013 SP1\redist\ia32\mkl
+--search-dir
+bin=C:\MiKTeX\miktex\bin
+--search-dir
+bin=C:\Users\ghayman\AppData\Roaming\npm
+--search-dir
+bin=C:\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\IDE\Extensions\Microsoft\VsGraphics
+--
+C:\Dev\FAST.Farm\bin\WakeDynamics_Driver.exe

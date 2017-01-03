@@ -1,0 +1,32 @@
+-----  WakeDynamics Driver v1.00.x Input File  ----------------------------------
+This is a template driver file for the WakeDynamics Module
+-----  Input Configuration  ----------------------------------------------------
+FALSE              Echo            -  Echo input parameters to "<rootname>.ech"?
+-----  Simulation Data  --------------------------------------------------------
+0.01               DT              - Simulation timestep size (s)
+1000               numSteps        - Number of simulation steps (-)
+-----  I/O Settings  -----------------------------------------------------------
+""                 OutFileRoot     - Root name for any output files (use "" for .dvr rootname) (-)
+True               TabDel          - When generating formatted output (OutForm=True), make output tab-delimited (fixed-width otherwise) (flag)
+"ES15.6E3"         OutFmt          - Format used for text tabular output, excluding the time channel.  Resulting field should be 10 characters. (quoted string)
+True               Beep            - Beep on exit (flag)
+-----  Wake Dynamics  ----------------------------------------------------------
+100                NumPlanes       - Number of wake planes (-)
+100                NumRadii        - Number of radii in the radial finite-difference grid (-)
+ 10                dR              - Radial increment of radial finite-difference grid (m)
+  1.25             filtParam       - Low-pass time-filter parameter, with a value between 0 (minimum filtering) and 1 (maximum filtering) (exclusive) (-)
+  0.65             C_NearWake      - Calibrated parameter for near-wake correction (-)
+  0.34             C_DMin_vAmb     - Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the minimum and exponential regions (-)
+  1.94             C_DMax_vAmb     - Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the transitional diameter fraction between the exponential and maximum regions (-)
+  4.23             C_FMin_vAmb     - Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the functional value in the minimum region (-)
+  -0.12            C_Exp_vAmb      - Calibrated parameter in the eddy viscosity filter function for ambient turbulence defining the exponent in the exponential region (-)
+  2.84             C_DMin_vShr     - Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the minimum and exponential regions (-)
+  0.11             C_DMax_vShr     - Calibrated parameter in the eddy viscosity filter function for the shear layer defining the transitional diameter fraction between the exponential and maximum regions (-)
+ 10.29             C_FMin_vShr     - Calibrated parameter in the eddy viscosity filter function for the shear layer defining the functional value in the minimum region (-)
+  3.54             C_Exp_vShr      - Calibrated parameter in the eddy viscosity filter function for the shear layer defining the exponent in the exponential region (-)
+  0.66             k_vAmb          - Calibrated parameter for the influence of ambient turbulence in the eddy viscosity (-)
+  0.73             k_vShr          - Calibrated parameter for the influence of the shear layer in the eddy viscosity (-)
+  1                WakeDiam_Mod    - Wake diameter calculation model (-)
+  2.50             C_WakeDiam      - Calibrated parameter for wake diameter calculation (-)
+------  Outputs  ---------------------------------------------------------------
+?????  
