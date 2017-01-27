@@ -177,7 +177,7 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       ! Set outputs (allocate arrays and set miscVar meshes for computing other outputs):
       !.................
          
-      call AllocAry(y%Ct, p%nr, 'y%Ct (radial ct)', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+      call AllocAry(y%AzimAvg_Ct, p%nr, 'y%AzimAvg_Ct (azimuth-averaged ct)', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
          
       nb = size(m%Turbine%AD%y%BladeLoad)
       Allocate( m%ADRotorDisk(nb), m%TempDisp(nb), m%AD_L2L(nb), STAT=ErrStat2 )
@@ -208,8 +208,8 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
             
             ! set node initial position/orientation
          ! shortcut for 
-         ! call MeshPositionNode(m%ADRotorDisk(k), j, r(j), errStat2, errMsg2)
-         m%ADRotorDisk(k)%Position = p%r ! this will get overwritten later, but we check that we have no zero-length elements in MeshCommit()
+         ! call MeshPositionNode(m%ADRotorDisk(k), j, [0,0,r(j)], errStat2, errMsg2)
+         m%ADRotorDisk(k)%Position(3,:) = p%r ! this will get overwritten later, but we check that we have no zero-length elements in MeshCommit()
          m%ADRotorDisk(k)%TranslationDisp = 0.0_R8Ki ! this happens by default, anyway....
          
             ! create line2 elements
@@ -222,9 +222,14 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
             call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
             if (errStat >= AbortErrLev) exit
             
-         call MeshMapCreate(m%Turbine%AD%y%BladeLoad(k), m%ADRotorDisk(k), m%AD_L2L(k), ErrStat2, ErrMsg2,            
+         call MeshMapCreate(m%Turbine%AD%y%BladeLoad(k), m%ADRotorDisk(k), m%AD_L2L(k), ErrStat2, ErrMsg2)           
             call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
       end do
+      
+      !................
+      ! also need to set the WrOutput channels...
+      !................
+      
       
       call cleanup()
       
@@ -423,7 +428,7 @@ SUBROUTINE FWrap_Increment( t, n, u, p, x, xd, z, OtherState, y, m, ErrStat, Err
    ELSE
       
          ! set the inputs needed for FAST
-      call FWrap_SetInputs(u, m)
+      call FWrap_SetInputs(u, m, t)
       
       ! call FAST p%n_FAST_low times:
       do n_ss = 1, p%n_FAST_low
@@ -471,7 +476,7 @@ SUBROUTINE FWrap_t0( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
 
 
       ! set the inputs needed for FAST:
-   call FWrap_SetInputs(u, m)
+   call FWrap_SetInputs(u, m, 0.0_DbKi)
       
       ! compute the FAST t0 solution:
    call FAST_Solution0_T(m%Turbine, ErrStat2, ErrMsg2 ) 
@@ -495,8 +500,8 @@ SUBROUTINE FWrap_CalcOutput(p, u, y, m, ErrStat, ErrMsg)
    CHARACTER(*),                    INTENT(  OUT)  :: ErrMsg      !< Error message if ErrStat /= ErrID_None
 
       ! Local variables   
-   REAL(ReKi)                                      :: x           ! velocity in x direction
-   REAL(ReKi)                                      :: y           ! velocity in y direction
+   REAL(ReKi)                                      :: vx          ! velocity in x direction
+   REAL(ReKi)                                      :: vy          ! velocity in y direction
    REAL(ReKi)                                      :: num         ! numerator
    REAL(ReKi)                                      :: denom       ! denominator
    REAL(ReKi)                                      :: p0(3)       ! hub location (in FAST with 0,0,0 as turbine reference)
@@ -544,15 +549,15 @@ SUBROUTINE FWrap_CalcOutput(p, u, y, m, ErrStat, ErrMsg)
       call SetErrStat(ErrID_Fatal,"Nacelle-yaw error is undefined because the rotor centerline "// &
                         "is directed vertically", ErrStat,ErrMsg,RoutineName) 
    else
-      y = m%Turbine%AD%m%V_DiskAvg(2) * y%xHat_Disk(1) - m%Turbine%AD%m%V_DiskAvg(1) * y%xHat_Disk(2) 
-      x = m%Turbine%AD%m%V_DiskAvg(1) * y%xHat_Disk(1) + m%Turbine%AD%m%V_DiskAvg(2) * y%xHat_Disk(2) 
+      vy = m%Turbine%AD%m%V_DiskAvg(2) * y%xHat_Disk(1) - m%Turbine%AD%m%V_DiskAvg(1) * y%xHat_Disk(2) 
+      vx = m%Turbine%AD%m%V_DiskAvg(1) * y%xHat_Disk(1) + m%Turbine%AD%m%V_DiskAvg(2) * y%xHat_Disk(2) 
       
-      y%YawErr = atan2(y, x)
+      y%YawErr = atan2(vy, vx)
    end if
    
       
    ! Center position of hub, m
-   p0 = m%Turbine%AD%Input(1)%HubMotion%Position(:,1) + m%Turbine%AD%Input(1)HubMotion%TranslationDisp(:,1) 
+   p0 = m%Turbine%AD%Input(1)%HubMotion%Position(:,1) + m%Turbine%AD%Input(1)%HubMotion%TranslationDisp(:,1) 
    y%p_hub = p%p_ref_Turbine + p0     
    
    ! Rotor diameter, m
@@ -574,7 +579,7 @@ SUBROUTINE FWrap_CalcOutput(p, u, y, m, ErrStat, ErrMsg)
       
       theta(1) = m%Turbine%AD%m%hub_theta_x_root(k)
       orientation = EulerConstruct( theta )
-      m%ADRotorDisk(k)%RefOrientation(:,:,1) = matmul(orientation, m%Turbine%AD%Input(1)HubMotion%Orientation%(:,:,1) )
+      m%ADRotorDisk(k)%RefOrientation(:,:,1) = matmul(orientation, m%Turbine%AD%Input(1)%HubMotion%Orientation(:,:,1) )
       do j=1,p%nr
          m%ADRotorDisk(k)%RefOrientation(:,:,j) = m%ADRotorDisk(k)%RefOrientation(:,:,1)
          m%ADRotorDisk(k)%Position(:,j) = p0 + p%r(j)*m%ADRotorDisk(k)%RefOrientation(3,:,1)
@@ -582,7 +587,7 @@ SUBROUTINE FWrap_CalcOutput(p, u, y, m, ErrStat, ErrMsg)
      !m%ADRotorDisk(k)%TranslationDisp = 0.0_ReKi
       m%ADRotorDisk(k)%RemapFlag = .true.
    
-      call transfer_line2_to_line2(m%Turbine%AD%y%BladeLoad(k), m%ADRotorDisk(k), m%AD_L2L, ErrStat2, ErrMsg2, m%TempDisp(k), m%ADRotorDisk(k))
+      call transfer_line2_to_line2(m%Turbine%AD%y%BladeLoad(k), m%ADRotorDisk(k), m%AD_L2L(k), ErrStat2, ErrMsg2, m%TempDisp(k), m%ADRotorDisk(k))
          call setErrStat(ErrStat2,ErrMsg2,ErrStat2,ErrMsg,RoutineName)
          if (ErrStat >= AbortErrLev) return
    end do
@@ -605,14 +610,14 @@ SUBROUTINE FWrap_CalcOutput(p, u, y, m, ErrStat, ErrMsg)
          
    end do     
       
-END SUBROUTINE FWrap_SetOutputs
+END SUBROUTINE FWrap_CalcOutput
 !----------------------------------------------------------------------------------------------------------------------------------
 !> This subroutine sets the inputs needed before calling an instance of FAST
-SUBROUTINE FWrap_SetInputs(u, m)
+SUBROUTINE FWrap_SetInputs(u, m, t)
 
    TYPE(FWrap_InputType),           INTENT(INOUT)  :: u           !< Inputs at t
    TYPE(FWrap_MiscVarType),         INTENT(INOUT)  :: m           !< Misc variables for optimization (not copied in glue code)
-
+   REAL(DbKi),                      INTENT(IN   )  :: t           !< current simulation time
 
    ! set the 4d-wind-inflow input array (a bit of a hack [simplification] so that we don't have large amounts of data copied in multiple data structures):
       call move_alloc(u%V_high_dist, m%Turbine%IfW%m%FDext%V)
