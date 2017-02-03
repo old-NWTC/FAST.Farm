@@ -40,6 +40,7 @@ USE IfW_TSFFWind_Types
 USE IfW_BladedFFWind_Types
 USE IfW_HAWCWind_Types
 USE IfW_UserWind_Types
+USE IfW_4Dext_Types
 USE Lidar_Types
 USE InflowWind_Types
 USE DWM_Types
@@ -89,6 +90,7 @@ IMPLICIT NONE
     CHARACTER(20)  :: OutFmt_t      !< Format used for time channel in text tabular output; resulting field should be 10 characters [-]
     INTEGER(IntKi)  :: FmtWidth      !< width of the time OutFmt specifier [-]
     INTEGER(IntKi)  :: TChanLen      !< width of the time channel [-]
+    INTEGER(IntKi)  :: n_TMax_m1      !< The time step of TMax - dt (the end time of the simulation) [-]
   END TYPE Farm_ParameterType
 ! =======================
 ! =========  FASTWrapper_Data  =======
@@ -168,6 +170,7 @@ ENDIF
     DstParamData%OutFmt_t = SrcParamData%OutFmt_t
     DstParamData%FmtWidth = SrcParamData%FmtWidth
     DstParamData%TChanLen = SrcParamData%TChanLen
+    DstParamData%n_TMax_m1 = SrcParamData%n_TMax_m1
  END SUBROUTINE Farm_CopyParam
 
  SUBROUTINE Farm_DestroyParam( ParamData, ErrStat, ErrMsg )
@@ -247,6 +250,7 @@ ENDIF
       Int_BufSz  = Int_BufSz  + 1*LEN(InData%OutFmt_t)  ! OutFmt_t
       Int_BufSz  = Int_BufSz  + 1  ! FmtWidth
       Int_BufSz  = Int_BufSz  + 1  ! TChanLen
+      Int_BufSz  = Int_BufSz  + 1  ! n_TMax_m1
   IF ( Re_BufSz  .GT. 0 ) THEN 
      ALLOCATE( ReKiBuf(  Re_BufSz  ), STAT=ErrStat2 )
      IF (ErrStat2 /= 0) THEN 
@@ -348,6 +352,8 @@ ENDIF
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%FmtWidth
       Int_Xferred   = Int_Xferred   + 1
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%TChanLen
+      Int_Xferred   = Int_Xferred   + 1
+      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%n_TMax_m1
       Int_Xferred   = Int_Xferred   + 1
  END SUBROUTINE Farm_PackParam
 
@@ -479,6 +485,8 @@ ENDIF
       OutData%FmtWidth = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1
       OutData%TChanLen = IntKiBuf( Int_Xferred ) 
+      Int_Xferred   = Int_Xferred + 1
+      OutData%n_TMax_m1 = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1
  END SUBROUTINE Farm_UnPackParam
 

@@ -35,7 +35,7 @@ MODULE FASTWrapper
 
    TYPE(ProgDesc), PARAMETER  :: FWrap_Ver = ProgDesc( 'FASTWrapper', 'v1.00.00', '2-Dec-2016' ) !< module date/version information
 
-   REAL(DbKi),     PARAMETER  :: t_initial = 0.0_DbKi                    ! Initial time
+   REAL(DbKi),  PARAMETER  :: t_initial = 0.0_DbKi                    ! Initial time
 
    ! ..... Public Subroutines ...................................................................................................
 
@@ -134,7 +134,7 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       ExternInitData%windGrid_n(1) = InitInp%nX_high
       ExternInitData%windGrid_n(2) = InitInp%nY_high
       ExternInitData%windGrid_n(3) = InitInp%nZ_high
-      ExternInitData%windGrid_n(4) = InitInp%dt_high
+      ExternInitData%windGrid_n(4) = InitInp%n_high_low
       
       ExternInitData%windGrid_delta(1) = InitInp%dX_high
       ExternInitData%windGrid_delta(2) = InitInp%dY_high
@@ -449,10 +449,9 @@ SUBROUTINE FWrap_Increment( t, n, u, p, x, xd, z, OtherState, y, m, ErrStat, Err
 END SUBROUTINE FWrap_Increment
 !----------------------------------------------------------------------------------------------------------------------------------
 !> This routine calculates outputs at n=0 based on inputs at n=0.
-SUBROUTINE FWrap_t0( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
+SUBROUTINE FWrap_t0( u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
 !..................................................................................................................................
 
-   REAL(DbKi),                      INTENT(IN   )  :: t           !< Current simulation time in seconds
    TYPE(FWrap_InputType),           INTENT(INOUT)  :: u           !< Inputs at t
    TYPE(FWrap_ParameterType),       INTENT(IN   )  :: p           !< Parameters
    TYPE(FWrap_ContinuousStateType), INTENT(IN   )  :: x           !< Continuous states at t
@@ -512,7 +511,7 @@ SUBROUTINE FWrap_CalcOutput(p, u, y, m, ErrStat, ErrMsg)
    
    INTEGER(IntKi)                                  :: ErrStat2        ! local error status
    CHARACTER(ErrMsgLen)                            :: ErrMsg2         ! local error message
-   CHARACTER(*), PARAMETER                         :: RoutineName = 'FWrap_Increment'
+   CHARACTER(*), PARAMETER                         :: RoutineName = 'FWrap_CalcOutput'
    
    integer, parameter                              :: indx = 1  ! m%BEMT_u(1) is at t; m%BEMT_u(2) is t+dt
    

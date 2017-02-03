@@ -36,7 +36,7 @@ INTEGER(IntKi)                        :: i_turb                                 
 INTEGER(IntKi)                        :: n_t_global                              ! simulation time step, loop counter for global simulation
 INTEGER(IntKi)                        :: ErrStat                                 ! Error status
 CHARACTER(ErrMsgLen)                  :: ErrMsg                                  ! Error message
-real(dbki)                            :: interval
+real(dbki)                            :: t                                       ! current time
 
    ! data for restart:
 CHARACTER(1024)                       :: InputFileName                           ! Rootname of the checkpoint file
@@ -52,40 +52,12 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
 
 !Note: Multiple entries in the same row implies that the operations can be done in parallel
 !FAST.Farm Driver
-!     Initialization:
-!        Read-In Input File
-!        Check Inputs and Set Parameters
-!        CALL AWAE_Init, CALL_SC_Init
-!        Transfer y_AWAE_Init to u_WD_Init, Transfer y_AWAE_Init to u_F_Init
-!        CALL WD_Init, CALL F_Init
-!        Open Output File
-!        n=0
-!        t=0
-!     Initial Calculate Output:
-!        CALL WD_CO, CALL SC_CO
-!        Transfer y_WD to u_AWAE, Transfer y_CO to u_F
-!        CALL AWEA_CO
-!        Transfer y_AWAE to u_F and u_WD
-!        CALL F_t0
-!        Transfer y_F to u_SC and u_WD
-!        Write Output to File
+!     Initialization
+!     Initial Calculate Output
 !     Time Increment:
-!        Update States:
-!           CALL WD_US, CALL SC_US, CALL F_Increment
-!           n=n+1
-!           t=t+dt
-!        Calculate Output:
-!           CALL WD_CO, CALL SC_CO
-!           Transfer y_WD to u_AWAE, Transfer y_CO to u_F, Transfer y_F to u_SC and u_WD
-!           CALL AWEA_CO
-!           Transfer y_AWAE to u_F and u_WD
-!           Write Output to File
-!     End:
-!        CALL SC_End
-!        CALL F_End
-!        CALL WD_End
-!        CALL AWAE_End
-!        Close Output File   
+!        Update States
+!        Calculate Output
+!     End
    
 
       ! Init NWTC_Library, display copyright and version information:
@@ -107,32 +79,23 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
       call Farm_Initialize( farm, InputFileName, ErrStat, ErrMsg )
          CALL CheckError( ErrStat, ErrMsg, 'during driver initialization' )
             
+      !...............................................................................................................................
+      ! Initialization: (calculate outputs based on states at t=0 as well as guesses of inputs and constraint states)
+      !............................................................................................................................... 
+         
+      call FARM_InitialCO(farm, ErrStat, ErrMsg)   
+         CALL CheckError( ErrStat, ErrMsg, 'during initial calculate output' )
       
-      DO i_turb = 1,farm%p%NumTurbines
-      !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-      ! loose coupling
-      !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-      
-         !...............................................................................................................................
-         ! Initialization: (calculate outputs based on states at t=t_initial as well as guesses of inputs and constraint states)
-         !...............................................................................................................................     
-         CALL FAST_Solution0_T( farm%FWrap(i_turb)%m%Turbine, ErrStat, ErrMsg )
-         CALL CheckError( ErrStat, ErrMsg, 'during simulation initialization'  )
-               
-      END DO
    END IF
-   !
-   !
-   !   
-   !!...............................................................................................................................
-   !! Time Stepping:
-   !!...............................................................................................................................         
-   !
-   !DO n_t_global = Restart_step, Turbine(1)%p_FAST%n_TMax_m1 
-   !   
-   !   ! bjj: we have to make sure the n_TMax_m1 and n_ChkptTime are the same for all turbines or have some different logic here
-   !   
-   !   
+   
+   
+      
+   !...............................................................................................................................
+   ! Time Stepping:
+   !...............................................................................................................................         
+   
+   DO n_t_global = Restart_step, farm%p%n_TMax_m1 
+
    !   ! write checkpoint file if requested
    !   IF (mod(n_t_global, Turbine(1)%p_FAST%n_ChkptTime) == 0 .AND. Restart_step /= n_t_global) then
    !      CheckpointRoot = TRIM(Turbine(1)%p_FAST%OutFileRoot)//'.'//TRIM(Num2LStr(n_t_global))
@@ -146,25 +109,18 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
    !   END IF
    !
    !   
-   !   ! this takes data from n_t_global and gets values at n_t_global + 1
-   !   DO i_turb = 1,NumTurbines
-   !
-   !      CALL FAST_Solution_T( t_initial, n_t_global, Turbine(i_turb), ErrStat, ErrMsg )
-   !         CALL CheckError( ErrStat, ErrMsg  )
-   !                                
-   !         
-   !         ! if we need to do linarization analysis, do it at this operating point (which is now n_t_global + 1) 
-   !         ! put this at the end of the loop so that we can output linearization analysis at last OP if desired
-   !      CALL FAST_Linearize_T(t_initial, n_t_global+1, Turbine(i_turb), ErrStat, ErrMsg)
-   !         CALL CheckError( ErrStat, ErrMsg  )
-   !         
-   !   END DO
-   !
-   !   
-   !   
-   !END DO ! n_t_global
-   !
-   !
+      ! this takes data from n_t_global and gets values at n_t_global + 1
+      t = n_t_global*farm%p%DT
+      CALL FARM_UpdateStates(t, n_t_global, farm, ErrStat, ErrMsg)      
+         CALL CheckError( ErrStat, ErrMsg  )
+   
+      t = (n_t_global+1)*farm%p%DT
+      CALL FARM_CalcOutput(t, farm, ErrStat, ErrMsg)      
+         CALL CheckError( ErrStat, ErrMsg  )
+      
+   END DO ! n_t_global
+   
+   
    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    !  Write simulation times and stop
    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

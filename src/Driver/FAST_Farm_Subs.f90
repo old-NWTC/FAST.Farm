@@ -43,16 +43,18 @@ MODULE FAST_Farm_Subs
 !> Routine to call Init routine for each module. This routine sets all of the init input data for each module. The initialization algorithm is: \n
 !!   -  Read-In Input File
 !!   -  Check Inputs and Set Parameters
-!!   -  CALL AWAE_Init, CALL_SC_Init (in parallel)
-!!   -  Transfer y_AWAE_Init to u_WD_Init, Transfer y_AWAE_Init to u_F_Init (in parallel)
-!!   -  CALL WD_Init, CALL F_Init (in parallel)
+!!   -  In parallel:
+!!      1.  CALL AWAE_Init
+!!      2.  CALL_SC_Init
+!!   -  In parallel:
+!!      1.  Transfer y_AWAE_Init to u_WD_Init and CALL WD_Init 
+!!      2.  Transfer y_AWAE_Init to u_F_Init and CALL F_Init
 !!   -  Open Output File
 !!   -  n=0
 !!   -  t=0
-
 SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
 
-   type(All_FastFarm_Data),  INTENT(INOUT) :: farm  
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm                !< FAST.Farm data
       
    INTEGER(IntKi),           INTENT(  OUT) :: ErrStat             !< Error status of the operation
    CHARACTER(*),             INTENT(  OUT) :: ErrMsg              !< Error message if ErrStat /= ErrID_None
@@ -88,7 +90,8 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
                      
    !...............................................................................................................................  
    ! step 1: read input file
-   
+   !...............................................................................................................................  
+      
    call Farm_ReadPrimaryFile( InputFile, farm%p, WD_InitInput%InputFileData, ErrStat2, ErrMsg2 )
       CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       IF (ErrStat >= AbortErrLev) THEN
@@ -96,7 +99,9 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
          RETURN
       END IF
 
+   !...............................................................................................................................  
    ! step 2: validate input & set parameters
+   !...............................................................................................................................  
    call Farm_ValidateInput( farm%p, WD_InitInput%InputFileData, ErrStat2, ErrMsg2 )
       CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       IF (ErrStat >= AbortErrLev) THEN
@@ -108,17 +113,35 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
    farm%p%OutFmt_t = 'F'//trim(num2lstr( farm%p%TChanLen ))//'.4' ! 'F10.4'    
 
    !...............................................................................................................................  
-   ! step 3: initialize SC and AWAE (in parallel)
+   ! step 3: initialize SC and AWAE (a and b can be done in parallel)
+   !...............................................................................................................................  
    
-   !call AWAE_Init()
+      !-------------------
+      ! a. CALL AWAE_Init
+   
    farm%p%dt = 0.00625_DbKi ! this  dt will get set in the AWAE module
-   !call SC_Init()
+   farm%p%n_TMax_m1  = CEILING( ( farm%p%TMax / farm%p%DT ) ) - 1 ! We're going to go from step 0 to n_TMax (thus the -1 here)
+      
+   
+      !-------------------
+      ! b. CALL call SC_Init
+
    
    !...............................................................................................................................  
-   ! step 4: initialize WD and FAST (in parallel; each instance of FAST can also be done in parallel)
+   ! step 4: initialize WD and FAST (a and b can be done in parallel; each instance of FAST can also be done in parallel)
+   !...............................................................................................................................  
    
-   ! call WD_Init(AWAE_InitOutput)
+      !-------------------
+      ! a. initialize WD
    
+         ! Transfer y_AWAE_Init to u_WD_Init
+   
+         ! call WD_Init(AWAE_InitOutput)
+   
+
+      !-------------------
+      ! b. initialize FAST (each instance can be done in parallel inside Farm_InitFAST)
+      
 !   CALL Farm_InitFAST( farm, WD_InitInput%InputFileData, AWAE_InitOutput, ErrStat2, ErrMsg2)
    CALL Farm_InitFAST( farm, WD_InitInput%InputFileData, ErrStat2, ErrMsg2)
       CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
@@ -129,9 +152,8 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
 
    !...............................................................................................................................  
    ! step 5: Open output file (or set up output file handling)      
-      
    !...............................................................................................................................  
-   ! step 6: set n=0 and t=0         
+      
    
    !...............................................................................................................................
    ! Destroy initializion data
@@ -146,8 +168,6 @@ CONTAINS
    END SUBROUTINE Cleanup
 
 END SUBROUTINE Farm_Initialize
-!----------------------------------------------------------------------------------------------------------------------------------
-   
 !----------------------------------------------------------------------------------------------------------------------------------
 !> This routine reads in the primary FAST.Farm input file, does some validation, and places the values it reads in the
 !!   parameter structure (p). It prints to an echo file if requested.
@@ -750,14 +770,12 @@ SUBROUTINE Farm_ValidateInput( p, WD_InitInp, ErrStat, ErrMsg )
    
 END SUBROUTINE Farm_ValidateInput
 !----------------------------------------------------------------------------------------------------------------------------------
-
-!----------------------------------------------------------------------------------------------------------------------------------
 !> This routine initializes all instances of FAST using the FASTWrapper routine
 SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
 
 
       ! Passed variables
-   type(All_FastFarm_Data),  INTENT(INOUT) :: farm  
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm                            !< FAST.Farm data
    TYPE(WD_InputFileType),   INTENT(IN   ) :: WD_InitInp                      !< input-file data for WakeDynamics module
    INTEGER(IntKi),           INTENT(  OUT) :: ErrStat                         !< Error status
    CHARACTER(*),             INTENT(  OUT) :: ErrMsg                          !< Error message
@@ -790,20 +808,21 @@ SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
       FWrap_InitInp%nr            = WD_InitInp%NumRadii
       FWrap_InitInp%dr            = WD_InitInp%dr
       FWrap_InitInp%tmax          = farm%p%TMax
+      
          ! data from AWAE_InitOut
-      !FWrap_InitInp%n_high_low    = 
-      !FWrap_InitInp%dt_high       = 
-      !FWrap_InitInp%p_ref_high    = 
-      !FWrap_InitInp%nX_high       = 
-      !FWrap_InitInp%nY_high       = 
-      !FWrap_InitInp%nZ_high       = 
-      !FWrap_InitInp%dX_high       = 
-      !FWrap_InitInp%dY_high       = 
-      !FWrap_InitInp%dZ_high       = 
+      FWrap_InitInp%n_high_low    = 4
+      FWrap_InitInp%dt_high       = .05
+      FWrap_InitInp%p_ref_high    = (/ -100, -100, 10 /)
+      FWrap_InitInp%nX_high       = 2
+      FWrap_InitInp%nY_high       = 2
+      FWrap_InitInp%nZ_high       = 2
+      FWrap_InitInp%dX_high       = 200.0
+      FWrap_InitInp%dY_high       = 200.0
+      FWrap_InitInp%dZ_high       = 200.0
       
       DO i_turb = 1,farm%p%NumTurbines
          !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-         ! initialization
+         ! initialization can be done in parallel (careful for FWrap_InitInp, though)
          !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++         
          
          FWrap_InitInp%FASTInFile    = farm%p%WT_FASTInFile(i_turb)
@@ -830,7 +849,234 @@ contains
    end subroutine cleanup
 END SUBROUTINE Farm_InitFAST
 !----------------------------------------------------------------------------------------------------------------------------------
-! This routine ends the modules used in this simulation. It does not exit the program.
+!> This routine performs the initial call to calculate outputs (at t=0).
+!! The Initial Calculate Output algorithm: \n
+!!    -  In parallel: 
+!!       1. Set u_AWAE=0, CALL AWAE_CO, and transfer y_AWAE to u_F and u_WD
+!!       2. Set u_SC=0, CALL SC_CO, and transfer y_SC to u_F
+!!    -  CALL F_t0
+!!    -  Transfer y_F to u_SC and u_WD
+!!    -  CALL WD_CO
+!!    -  Transfer y_WD to u_AWAE
+!!    -  CALL AWAE_CO
+!!    -  Transfer y_AWAE to u_F and u_WD
+!!    -  Write Output to File
+subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm                            !< FAST.Farm data
+   INTEGER(IntKi),           INTENT(  OUT) :: ErrStat                         !< Error status
+   CHARACTER(*),             INTENT(  OUT) :: ErrMsg                          !< Error message
+
+   INTEGER(IntKi)                          :: i_turb                    
+   INTEGER(IntKi)                          :: ErrStat2                        ! Temporary Error status
+   CHARACTER(ErrMsgLen)                    :: ErrMsg2                         ! Temporary Error message
+   CHARACTER(*),   PARAMETER               :: RoutineName = 'FARM_InitialCO'
+   
+   
+   
+   ErrStat = ErrID_None
+   ErrMsg = ""
+   
+   !.......................................................................................
+   ! Initial calls to AWAE and SC modules (steps 1. and 2. can be done in parallel)
+   !.......................................................................................
+   
+      !--------------------
+      ! 1a. u_AWAE=0         
+
+      !--------------------
+      ! 1b. CALL AWAE_CO         
+
+      !--------------------
+      ! 1c. transfer y_AWAE to u_F and u_WD         
+   
+   DO i_turb = 1,farm%p%NumTurbines
+   ! allocated in FAST's IfW initialization as 3,x,y,z,t
+      farm%FWrap(i_turb)%u%V_high_dist = 1.0_ReKi
+   END DO
+   
+   
+   
+      !--------------------
+      ! 2a. u_SC=0         
+
+      !--------------------
+      ! 2b. CALL SC_CO         
+
+      !--------------------
+      ! 2c. transfer y_SC to u_F         
+   
+   !DO i_turb = 1,farm%p%NumTurbines
+   !   farm%FWrap(i_turb)%u%FromSC_Global =
+   !   farm%FWrap(i_turb)%u%FromSC_Turbine =
+   !END DO
+   
+   !.......................................................................................
+   ! CALL F_t0
+   !.......................................................................................
+         
+   DO i_turb = 1,farm%p%NumTurbines
+      
+      call FWrap_t0( farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
+                     farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, ErrStat2, ErrMsg2 )         
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+               
+   END DO
+   if (ErrStat >= AbortErrLev) return
+   
+   !.......................................................................................
+   ! Transfer y_F to u_SC and u_WD
+   !.......................................................................................
+      
+   !.......................................................................................
+   ! CALL WD_CO
+   !.......................................................................................
+   
+   !.......................................................................................
+   ! Transfer y_WD to u_AWAE
+   !.......................................................................................
+   
+   !.......................................................................................
+   ! CALL AWEA_CO
+   !.......................................................................................
+   
+   !.......................................................................................
+   ! Transfer y_AWAE to u_F and u_WD
+   !.......................................................................................
+        
+   !.......................................................................................
+   ! Write Output to File
+   !.......................................................................................
+   
+   
+end subroutine FARM_InitialCO
+!----------------------------------------------------------------------------------------------------------------------------------
+!> This routine updates states each time increment.
+!! The update states algorithm: \n
+!!    -  In parallel: 
+!!       1. call WD_US
+!!       2. call SC_US
+!!       3. call F_Increment
+!!    -  \f$ n = n + 1 \f$
+!!    -  \f$ t = t + \Delta t \f$
+subroutine FARM_UpdateStates(t, n, farm, ErrStat, ErrMsg)
+   REAL(DbKi),               INTENT(IN   ) :: t                               !< Current simulation time in seconds
+   INTEGER(IntKi),           INTENT(IN   ) :: n                               !< Current step of the simulation: t = n*Interval
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm                            !< FAST.Farm data  
+   INTEGER(IntKi),           INTENT(  OUT) :: ErrStat                         !< Error status
+   CHARACTER(*),             INTENT(  OUT) :: ErrMsg                          !< Error message
+
+   INTEGER(IntKi)                          :: i_turb                    
+   INTEGER(IntKi)                          :: ErrStat2                        ! Temporary Error status
+   CHARACTER(ErrMsgLen)                    :: ErrMsg2                         ! Temporary Error message
+   CHARACTER(*),   PARAMETER               :: RoutineName = 'FARM_UpdateStates'
+   
+   
+   
+   ErrStat = ErrID_None
+   ErrMsg = ""
+   
+   !.......................................................................................
+   ! update module states (steps 1. and 2. and 3. can be done in parallel)
+   !.......................................................................................
+   
+      !--------------------
+      ! 1. CALL WD_US         
+   
+   
+      !--------------------
+      ! 2. CALL SC_US         
+   
+
+      !--------------------
+      ! 3. CALL F_Increment         
+         
+   DO i_turb = 1,farm%p%NumTurbines
+      
+      call FWrap_Increment( t, n, farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
+                     farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, ErrStat2, ErrMsg2 )         
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+               
+   END DO
+   if (ErrStat >= AbortErrLev) return
+      
+   
+end subroutine FARM_UpdateStates
+!----------------------------------------------------------------------------------------------------------------------------------
+!> This routine calculates outputs at each time increment and solves for the inputs at the next step.
+!! The calculate output algorithm: \n
+!!    -  In parallel: 
+!!       1. call WD_CO and transfer y_WD to u_AWAE
+!!       2. call SC_CO and transfer y_SC to u_F
+!!       3. Transfer y_F to u_SC and u_WD
+!!    -  CALL AWEA_CO
+!!    -  Transfer y_AWAE to u_F and u_WD
+!!    -  Write Output to File
+subroutine FARM_CalcOutput(t, farm, ErrStat, ErrMsg)
+   REAL(DbKi),               INTENT(IN   ) :: t                               !< Current simulation time in seconds
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm                            !< FAST.Farm data  
+   INTEGER(IntKi),           INTENT(  OUT) :: ErrStat                         !< Error status
+   CHARACTER(*),             INTENT(  OUT) :: ErrMsg                          !< Error message
+
+   INTEGER(IntKi)                          :: i_turb                    
+   INTEGER(IntKi)                          :: ErrStat2                        ! Temporary Error status
+   CHARACTER(ErrMsgLen)                    :: ErrMsg2                         ! Temporary Error message
+   CHARACTER(*),   PARAMETER               :: RoutineName = 'FARM_CalcOutput'
+   
+      
+   ErrStat = ErrID_None
+   ErrMsg = ""
+   
+   !.......................................................................................
+   ! calculate module outputs and perform some input-output solves (steps 1. and 2. and 3. can be done in parallel)
+   !.......................................................................................
+   
+      !--------------------
+      ! 1. call WD_CO and transfer y_WD to u_AWAE        
+   
+   
+      !--------------------
+      ! 2. call SC_CO and transfer y_SC to u_F         
+   
+
+      !--------------------
+      ! 3. Transfer y_F to u_SC and u_WD         
+         
+   !DO i_turb = 1,farm%p%NumTurbines
+   !   
+   !   farm%FWrap(i_turb)%y         
+   !      call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   !            
+   !END DO
+   if (ErrStat >= AbortErrLev) return
+      
+   !.......................................................................................
+   ! calculate AWAE outputs and perform rest of input-output solves (2. and 3. can be done in parallel)
+   !.......................................................................................
+   
+      !--------------------
+      ! 1. call AWEA_CO 
+
+      !--------------------
+      ! 2. Transfer y_AWAE to u_F 
+   
+      !--------------------
+      ! 3. Transfer y_AWAE to u_WD 
+   
+   
+   !.......................................................................................
+   ! Write Output to File
+   !.......................................................................................
+   
+   
+end subroutine FARM_CalcOutput
+!----------------------------------------------------------------------------------------------------------------------------------
+!> This routine ends the modules used in this simulation. It does not exit the program.
+!!    -  In parallel: 
+!!       1. CALL AWAE_End
+!!       2. CALL WD_End
+!!       3. CALL SC_End
+!!       4. CALL F_End
+!!    -  Close Output File   
 subroutine FARM_End(farm, ErrStat, ErrMsg)
    type(All_FastFarm_Data),  INTENT(INOUT) :: farm  
    INTEGER(IntKi),           INTENT(  OUT) :: ErrStat                         !< Error status
@@ -847,13 +1093,26 @@ subroutine FARM_End(farm, ErrStat, ErrMsg)
    ErrMsg = ""
    
    !.......................................................................................
-   ! End supercontroller
+   ! end all modules (can be done in parallel) 
+   !.......................................................................................
+   
+      !--------------
+      ! 1. end AWAE
+   
+   ! call AWAE_End()
+      
+      !--------------
+      ! 2. end WakeDynamics
+   
+   ! call WD_End()
+   
+      !--------------
+      ! 3. End supercontroller
    
    !CALL SC_End()
    
-   
-   !.......................................................................................
-   ! End each instance of FAST
+      !--------------
+      ! 4. End each instance of FAST (each instance of FAST can be done in parallel, too)
    
    DO i_turb = 1,farm%p%NumTurbines
       if (farm%FWrap(i_turb)%IsInitialized) then
@@ -862,18 +1121,11 @@ subroutine FARM_End(farm, ErrStat, ErrMsg)
          call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       end if
    END DO
-   
-   
-   !.......................................................................................
-   ! end WakeDynamics
-   ! call WD_End()
-
-   !.......................................................................................
-   ! end AWAE
-   ! call AWAE_End()
+      
    
    !.......................................................................................
    ! close output file
+   !.......................................................................................
    
 end subroutine FARM_End
 !----------------------------------------------------------------------------------------------------------------------------------
