@@ -161,7 +161,10 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
          return
       end if
       
+         ! move the misc var to the input variable...
+      call move_alloc(m%Turbine%IfW%m%FDext%V, u%V_high_dist)
          
+      
       !.................
       ! Define parameters here:
       !.................
@@ -277,7 +280,7 @@ subroutine SetParameters(InitInp, p, dt_FAST, InitInp_dt, ErrStat, ErrMsg)
    if (ErrStat>=AbortErrLev) return
    
    do i=0,p%nr-1
-      p%r(i) = i*InitInp%dr
+      p%r(i+1) = i*InitInp%dr
    end do
    
    !BJJ: IT MIGHT be easier to just save the deltas so we can interpolate into these fields...
@@ -572,8 +575,8 @@ SUBROUTINE FWrap_CalcOutput(p, u, y, m, ErrStat, ErrMsg)
    theta = 0.0_ReKi
    do k=1,size(m%ADRotorDisk)
             
-      m%TempDisp(k)%RefOrientation = m%Turbine%AD%y%BladeLoad(k)%Orientation      
-      m%TempDisp(k)%Position       = m%Turbine%AD%y%BladeLoad(k)%Position + m%Turbine%AD%y%BladeLoad(k)%TranslationDisp     
+      m%TempDisp(k)%RefOrientation = m%Turbine%AD%Input(1)%BladeMotion(k)%Orientation      
+      m%TempDisp(k)%Position       = m%Turbine%AD%Input(1)%BladeMotion(k)%Position + m%Turbine%AD%Input(1)%BladeMotion(k)%TranslationDisp     
      !m%TempDisp(k)%TranslationDisp = 0.0_R8Ki
       
       theta(1) = m%Turbine%AD%m%hub_theta_x_root(k)

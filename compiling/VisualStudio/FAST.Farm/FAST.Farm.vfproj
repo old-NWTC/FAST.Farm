@@ -15,7 +15,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32" OutputDirectory="..\..\..\bin\" TargetName="FAST.Farm_$(PlatformName)" WholeProgramOptimization="true">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" StandardWarnings="standardWarningsF03" DisableSpecificDiagnostics="5268,5199" RuntimeLibrary="rtMultiThreadedDLL"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" StandardWarnings="standardWarningsF03" DisableSpecificDiagnostics="5268,5199"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateManifest="false" SubSystem="subSystemConsole"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -35,7 +35,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|x64" OutputDirectory="..\..\..\bin\" TargetName="FAST.Farm_$(PlatformName)" WholeProgramOptimization="true">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" StandardWarnings="standardWarningsF03" DisableSpecificDiagnostics="5268,5199" RuntimeLibrary="rtMultiThreadedDLL"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" StandardWarnings="standardWarningsF03" DisableSpecificDiagnostics="5268,5199"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateManifest="false" SubSystem="subSystemConsole"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -80,6 +80,7 @@
 		<File RelativePath="..\..\..\src\FASTWrapper\FASTWrapper_Types.f90"/></Filter>
 		<File RelativePath="..\..\..\src\FASTWrapper\FASTWrapper.f90"/></Filter>
 		<Filter Name="WakeDynamics">
+		<Filter Name="RegistryFiles">
 		<File RelativePath="..\..\..\src\WakeDynamics\WakeDynamics_Registry.txt">
 			<FileConfiguration Name="Debug|Win32">
 				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat WakeDynamics" Description="Running Registry for WakeDynamics" Outputs="..\..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></FileConfiguration>
@@ -89,5 +90,7 @@
 				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat WakeDynamics" Description="Running Registry for WakeDynamics" Outputs="..\..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release|Win32">
 				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat WakeDynamics" Description="Running Registry for WakeDynamics" Outputs="..\..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></FileConfiguration></File>
-		<File RelativePath="..\..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></Filter></Filter></Files>
+		<File RelativePath="..\..\..\src\WakeDynamics\WakeDynamics_Types.f90"/></Filter>
+		<File RelativePath="..\..\..\src\WakeDynamics\WakeDynamics.f90"/>
+		<File RelativePath="..\..\..\src\WakeDynamics\WakeDynamics_IO.f90"/></Filter></Filter></Files>
 	<Globals/></VisualStudioProject>

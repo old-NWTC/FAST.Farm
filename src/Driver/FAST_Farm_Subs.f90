@@ -891,7 +891,7 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
    
    DO i_turb = 1,farm%p%NumTurbines
    ! allocated in FAST's IfW initialization as 3,x,y,z,t
-      farm%FWrap(i_turb)%u%V_high_dist = 1.0_ReKi
+      farm%FWrap(i_turb)%u%V_high_dist = 10.0_ReKi
    END DO
    
    
@@ -1058,6 +1058,11 @@ subroutine FARM_CalcOutput(t, farm, ErrStat, ErrMsg)
 
       !--------------------
       ! 2. Transfer y_AWAE to u_F 
+   
+   DO i_turb = 1,farm%p%NumTurbines
+      farm%FWrap(i_turb)%u%V_high_dist = 10.0_ReKi + t/farm%p%tMax
+   END DO
+   
    
       !--------------------
       ! 3. Transfer y_AWAE to u_WD 
