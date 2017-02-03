@@ -71,7 +71,7 @@ function GetYawCorrection(yawErr, xhat_disk, dx, p, errStat, errMsg)
    yxdisk = (/xhat_disk(2), 0.0, 0.0/)
    yydisk = (/0.0, xhat_disk(2), 0.0/)
    xxdisk = (/xhat_disk(1), 0.0, 0.0/)
-   xydisknorm = norm2(xxdisk + yydisk)
+   xydisknorm = TwoNorm(xxdisk + yydisk)
    
    if (EqualRealNos(xydisknorm,0.0_ReKi)) then
       ! TEST: E3
@@ -703,7 +703,7 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
       ! Update states at disk-plane to [n+1] 
       
    xd%xhat_plane     (:,0) =  xd%xhat_plane(:,0)*p%filtParam + u%xhat_disk(:)*(1.0_ReKi-p%filtParam)  ! 2-step calculation for xhat_plane at disk
-   norm2_xhat_plane        =  norm2( xd%xhat_plane(:,0) ) 
+   norm2_xhat_plane        =  TwoNorm( xd%xhat_plane(:,0) ) 
    if ( EqualRealNos(norm2_xhat_plane, 0.0_ReKi) ) then
       ! TEST: E1
       call SetErrStat(ErrID_FATAL, 'The nacelle-yaw has rotated 180 degrees between time steps, i.e., the L2 norm of xd%xhat_plane(:,0)*p%filtParam + u%xhat_disk(:)*(1-p%filtParam) is zero.', errStat, errMsg, RoutineName) 
