@@ -266,7 +266,7 @@ subroutine WD_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
    type(WD_OutputType),          intent(  out) :: y             !< Initial system outputs (outputs are not calculated;
                                                                 !!   only the output mesh is initialized)
    type(WD_MiscVarType),         intent(  out) :: m             !< Initial misc/optimization variables
-   real(DbKi),                   intent(inout) :: interval      !< Coupling interval in seconds: the rate that
+   real(DbKi),                   intent(in   ) :: interval      !< Coupling interval in seconds: the rate that
                                                                 !!   (1) WD_UpdateStates() is called in loose coupling &
                                                                 !!   (2) WD_UpdateDiscState() is called in tight coupling.
                                                                 !!   Input is the suggested time from the glue code;
@@ -539,7 +539,7 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
 
    real(DbKi),                     intent(in   ) :: t          !< Current simulation time in seconds
    integer(IntKi),                 intent(in   ) :: n          !< Current simulation time step n = 0,1,...
-   type(WD_InputType),             intent(inout) :: u          !< Inputs at utimes (out only for mesh record-keeping in ExtrapInterp routine)
+   type(WD_InputType),             intent(in   ) :: u          !< Inputs at utimes (out only for mesh record-keeping in ExtrapInterp routine)
   ! real(DbKi),                     intent(in   ) :: utimes   !< Times associated with u(:), in seconds
    type(WD_ParameterType),         intent(in   ) :: p          !< Parameters
    type(WD_ContinuousStateType),   intent(inout) :: x          !< Input: Continuous states at t;
@@ -973,7 +973,8 @@ subroutine InitStatesWithInputs(numPlanes, numRadii, u, p, xd, errStat, errMsg)
    ! Note, all of these states will have been set to zero in the WD_Init routine
    
      
-   
+   ErrStat = ErrID_None
+   ErrMsg = ""
       
    do i = 0, numPlanes - 1
       xd%x_plane     (i)   = u%Vx_rel_disk*real(i,ReKi)*real(p%DT,ReKi)
