@@ -13,6 +13,7 @@
 # ...... Include files (definitions from NWTC Library) ............................................................................
 include Registry_NWTC_Library.txt
 usefrom FASTWrapper_Registry.txt
+usefrom WakeDynamics_Registry.txt
 
 # ..... Parameters ................................................................................................................
 # Define parameters here:
@@ -47,10 +48,23 @@ typedef    ^    ^                 FWrap_OutputType          y             -   - 
 typedef    ^    ^                 FWrap_MiscVarType         m             -   -         -   "Misc/optimization variables"
 typedef    ^    ^                 logical                   IsInitialized -   .FALSE.   -   "Has FWrap_Init been called"
 
+# ..... WakeDynamics data .......................................................................................................
+typedef    ^    WakeDynamics_Data WD_ContinuousStateType    x             -   -         -   "Continuous states"
+typedef    ^    ^                 WD_DiscreteStateType      xd            -   -         -   "Discrete states"
+typedef    ^    ^                 WD_ConstraintStateType    z             -   -         -   "Constraint states"
+typedef    ^    ^                 WD_OtherStateType         OtherSt       -   -         -   "Other states"
+typedef    ^    ^                 WD_ParameterType          p             -   -         -   "Parameters"
+typedef    ^    ^                 WD_InputType              u             -   -         -   "System inputs"
+typedef    ^    ^                 WD_OutputType             y             -   -         -   "System outputs"
+typedef    ^    ^                 WD_MiscVarType            m             -   -         -   "Misc/optimization variables"
+typedef    ^    ^                 logical                   IsInitialized -   .FALSE.   -   "Has WD_Init been called"
+
+
 
 # ..... All submodules' variables.................................................................................................
 typedef    ^   All_FastFarm_Data  Farm_ParameterType        p          -   -   -   "FAST.Farm parameter data" -
 typedef    ^   All_FastFarm_Data  FASTWrapper_Data          FWrap     {:}  -   -   "FASTWrapper data (one instance per turbine)" -
+typedef    ^   All_FastFarm_Data  WakeDynamics_Data         WD        {:}  -   -   "WakeDynamics (WD) data" -
 #typedef    ^   All_FastFarm_Data  AWAE_Data                 AWAE       -   -   -   "Ambient Wind & Array Effects (AWAE) data" -
 
 

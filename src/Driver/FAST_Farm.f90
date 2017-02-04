@@ -6,8 +6,8 @@
 !!
 ! ..................................................................................................................................
 !! ## LICENSING
-!! Copyright (C) 2016  Bonnie Jonkman, independent contributor
-!! Copyright (C) 2016  National Renewable Energy Laboratory
+!! Copyright (C) 2017  Bonnie Jonkman, independent contributor
+!! Copyright (C) 2017  National Renewable Energy Laboratory
 !!
 !!    This file is part of FAST_Farm.
 !!

@@ -6,8 +6,8 @@
 !!
 ! ..................................................................................................................................
 !! ## LICENSING
-!! Copyright (C) 2016  Bonnie Jonkman, independent contributor
-!! Copyright (C) 2016  National Renewable Energy Laboratory
+!! Copyright (C) 2017  Bonnie Jonkman, independent contributor
+!! Copyright (C) 2017  National Renewable Energy Laboratory
 !!
 !!    This file is part of FAST_Farm.
 !!
@@ -27,7 +27,7 @@ MODULE FAST_Farm_Subs
 
    USE FAST_Farm_Types
    USE NWTC_Library
-   USE WakeDynamics_Types
+   USE WakeDynamics
    USE FAST_Subs
    USE FASTWrapper
 
@@ -35,7 +35,7 @@ MODULE FAST_Farm_Subs
    IMPLICIT NONE
 
 
-   TYPE(ProgDesc), PARAMETER  :: Farm_Ver = ProgDesc( 'FAST.Farm', 'v1.00.00', '17-Oct-2016' ) !< module date/version information   
+   TYPE(ProgDesc), PARAMETER  :: Farm_Ver = ProgDesc( 'FAST.Farm', 'v1.00.00', '4-Feb-2017' ) !< module date/version information   
    
    CONTAINS
 
@@ -72,7 +72,7 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
    !..........
    ErrStat = ErrID_None
    ErrMsg  = ""         
-   AbortErrLev            = ErrID_Fatal                                 ! Until we read otherwise from the FAST input file, we abort only on FATAL errors
+   AbortErrLev  = ErrID_Fatal                                 ! Until we read otherwise from the FAST input file, we abort only on FATAL errors
       
    
       ! ... Open and read input files, initialize global parameters. ...
@@ -124,7 +124,7 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
       
    
       !-------------------
-      ! b. CALL call SC_Init
+      ! b. CALL SC_Init
 
    
    !...............................................................................................................................  
@@ -134,11 +134,15 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
       !-------------------
       ! a. initialize WD
    
-         ! Transfer y_AWAE_Init to u_WD_Init
+         ! Transfer AWAE_InitOutput to WD_InitInput?
    
-         ! call WD_Init(AWAE_InitOutput)
+   call Farm_InitWD( farm, WD_InitInput, ErrStat2, ErrMsg2 )
+      CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+      IF (ErrStat >= AbortErrLev) THEN
+         CALL Cleanup()
+         RETURN
+      END IF   
    
-
       !-------------------
       ! b. initialize FAST (each instance can be done in parallel inside Farm_InitFAST)
       
@@ -770,7 +774,70 @@ SUBROUTINE Farm_ValidateInput( p, WD_InitInp, ErrStat, ErrMsg )
    
 END SUBROUTINE Farm_ValidateInput
 !----------------------------------------------------------------------------------------------------------------------------------
-!> This routine initializes all instances of FAST using the FASTWrapper routine
+!> This routine initializes all instances of WakeDynamics
+SUBROUTINE Farm_InitWD( farm, WD_InitInp, ErrStat, ErrMsg )
+
+
+      ! Passed variables
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm                            !< FAST.Farm data
+   TYPE(WD_InitInputType),   INTENT(INOUT) :: WD_InitInp                      !< init input for WakeDynamics module; input file data already filled in
+   INTEGER(IntKi),           INTENT(  OUT) :: ErrStat                         !< Error status
+   CHARACTER(*),             INTENT(  OUT) :: ErrMsg                          !< Error message
+
+   ! local variables
+   type(WD_InitOutputType)                 :: WD_InitOut
+
+   INTEGER(IntKi)                          :: i_turb                          ! loop counter for rotor number
+   INTEGER(IntKi)                          :: ErrStat2                        ! Temporary Error status
+   CHARACTER(ErrMsgLen)                    :: ErrMsg2                         ! Temporary Error message
+   CHARACTER(*),   PARAMETER               :: RoutineName = 'Farm_InitWD'
+   
+   
+   
+   ErrStat = ErrID_None
+   ErrMsg = ""
+   
+   ALLOCATE(farm%WD(farm%p%NumTurbines),STAT=ErrStat2)
+   if (ErrStat2 /= 0) then
+      CALL SetErrStat( ErrID_Fatal, 'Could not allocate memory for Wake Dynamics data', ErrStat, ErrMsg, RoutineName )
+      return
+   end if
+   
+
+         
+      !.................
+      ! Initialize each instance of WD
+      !................                  
+      
+      DO i_turb = 1,farm%p%NumTurbines
+         !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+         ! initialization can be done in parallel (careful for FWrap_InitInp, though)
+         !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++         
+         
+         WD_InitInp%RootName    = trim(farm%p%OutFileRoot)//'.T'//trim(num2lstr(i_turb))
+         
+            ! note that WD_Init has Interval as INTENT(IN) so, we don't need to worry about overwriting farm%p%dt here:
+         call WD_Init( WD_InitInp, farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
+                          farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%y, farm%WD(i_turb)%m, farm%p%dt, WD_InitOut, ErrStat2, ErrMsg2 )
+         
+         farm%WD(i_turb)%IsInitialized = .true.
+            CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+            if (ErrStat >= AbortErrLev) then
+               call cleanup()
+               return
+            end if
+            
+      END DO   
+   
+      call cleanup()
+      
+contains
+   subroutine cleanup()
+      call WD_DestroyInitOutput( WD_InitOut, ErrStat2, ErrMsg2 )
+   end subroutine cleanup
+END SUBROUTINE Farm_InitWD
+!----------------------------------------------------------------------------------------------------------------------------------
+!> This routine initializes all instances of FAST using the FASTWrapper module
 SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
 
 
@@ -784,7 +851,7 @@ SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
    type(FWrap_InitInputType)               :: FWrap_InitInp
    type(FWrap_InitOutputType)              :: FWrap_InitOut
 
-   INTEGER(IntKi)                          :: i_turb                          ! Temporary Error status
+   INTEGER(IntKi)                          :: i_turb                          ! loop counter for rotor number
    INTEGER(IntKi)                          :: ErrStat2                        ! Temporary Error status
    CHARACTER(ErrMsgLen)                    :: ErrMsg2                         ! Temporary Error message
    CHARACTER(*),   PARAMETER               :: RoutineName = 'Farm_InitFAST'
@@ -831,7 +898,7 @@ SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
          
             ! note that FWrap_Init has Interval as INTENT(IN) so, we don't need to worry about overwriting farm%p%dt here:
          call FWrap_Init( FWrap_InitInp, farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
-                          farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, farm%p%dt, FWrap_InitOut, ErrStat, ErrMsg )
+                          farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, farm%p%dt, FWrap_InitOut, ErrStat2, ErrMsg2 )
          
          farm%FWrap(i_turb)%IsInitialized = .true.
             CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
@@ -842,6 +909,8 @@ SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
             
       END DO   
    
+      call cleanup()
+      
 contains
    subroutine cleanup()
       call FWrap_DestroyInitInput( FWrap_InitInp, ErrStat2, ErrMsg2 )
@@ -891,9 +960,16 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
    
    DO i_turb = 1,farm%p%NumTurbines
    ! allocated in FAST's IfW initialization as 3,x,y,z,t
-      farm%FWrap(i_turb)%u%V_high_dist = 10.0_ReKi
+      farm%FWrap(i_turb)%u%V_high_dist(1,:,:,:,:) = 10.0_ReKi
+      farm%FWrap(i_turb)%u%V_high_dist(2:3,:,:,:,:) = 0.1_ReKi
    END DO
    
+   
+   DO i_turb = 1,farm%p%NumTurbines
+      farm%WD(i_turb)%u%V_plane        = 1  ! Advection, deflection, and meandering velocity of wake planes, m/s
+      farm%WD(i_turb)%u%Vx_wind_disk   = 10  ! Rotor-disk-averaged ambient wind speed, normal to planes, m/s
+      farm%WD(i_turb)%u%TI_amb         = .15  ! Ambient turbulence intensity of wind at rotor disk
+   END DO
    
    
       !--------------------
@@ -924,12 +1000,33 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
    if (ErrStat >= AbortErrLev) return
    
    !.......................................................................................
-   ! Transfer y_F to u_SC and u_WD
+   ! Transfer y_F to u_SC and u_WD (can be done in parallel)
    !.......................................................................................
       
+      !--------------------
+      ! 1.  Transfer y_F to u_SC     
+   
+   !DO i_turb = 1,farm%p%NumTurbines   
+   !   = farm%FWrap(i_turb)%y%ToSC_Turbine   
+   !END DO
+   
+      !--------------------
+      ! 2.  Transfer y_F to u_WD     
+   
+   call Transfer_FAST_to_WD(farm)
+      
    !.......................................................................................
-   ! CALL WD_CO
+   ! CALL WD_CO (can be done in parallel)
    !.......................................................................................
+   
+   DO i_turb = 1,farm%p%NumTurbines
+      
+      call WD_CalcOutput( 0.0_DbKi, farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
+                     farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%y, farm%WD(i_turb)%m, ErrStat2, ErrMsg2 )         
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+               
+   END DO
+   
    
    !.......................................................................................
    ! Transfer y_WD to u_AWAE
@@ -982,6 +1079,15 @@ subroutine FARM_UpdateStates(t, n, farm, ErrStat, ErrMsg)
       !--------------------
       ! 1. CALL WD_US         
    
+   DO i_turb = 1,farm%p%NumTurbines
+      
+      call WD_UpdateStates( t, n, farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
+                     farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%m, ErrStat2, ErrMsg2 )         
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+               
+   END DO
+   if (ErrStat >= AbortErrLev) return
+   
    
       !--------------------
       ! 2. CALL SC_US         
@@ -1033,6 +1139,14 @@ subroutine FARM_CalcOutput(t, farm, ErrStat, ErrMsg)
       !--------------------
       ! 1. call WD_CO and transfer y_WD to u_AWAE        
    
+   DO i_turb = 1,farm%p%NumTurbines
+      
+      call WD_CalcOutput( t, farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
+                     farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%y, farm%WD(i_turb)%m, ErrStat2, ErrMsg2 )         
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+               
+   END DO
+   
    
       !--------------------
       ! 2. call SC_CO and transfer y_SC to u_F         
@@ -1041,14 +1155,8 @@ subroutine FARM_CalcOutput(t, farm, ErrStat, ErrMsg)
       !--------------------
       ! 3. Transfer y_F to u_SC and u_WD         
          
-   !DO i_turb = 1,farm%p%NumTurbines
-   !   
-   !   farm%FWrap(i_turb)%y         
-   !      call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   !            
-   !END DO
-   if (ErrStat >= AbortErrLev) return
-      
+   call Transfer_FAST_to_WD(farm)
+         
    !.......................................................................................
    ! calculate AWAE outputs and perform rest of input-output solves (2. and 3. can be done in parallel)
    !.......................................................................................
@@ -1109,7 +1217,14 @@ subroutine FARM_End(farm, ErrStat, ErrMsg)
       !--------------
       ! 2. end WakeDynamics
    
-   ! call WD_End()
+   DO i_turb = 1,farm%p%NumTurbines
+      if (farm%WD(i_turb)%IsInitialized) then      
+         call WD_End( farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
+                      farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%y, farm%WD(i_turb)%m, ErrStat2, ErrMsg2 )         
+            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      end if      
+   END DO
+   
    
       !--------------
       ! 3. End supercontroller
@@ -1133,6 +1248,22 @@ subroutine FARM_End(farm, ErrStat, ErrMsg)
    !.......................................................................................
    
 end subroutine FARM_End
+!----------------------------------------------------------------------------------------------------------------------------------
+SUBROUTINE Transfer_FAST_to_WD(farm)
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm                            !< FAST.Farm data  
+
+   integer(intKi)  :: i_turb
+   
+   DO i_turb = 1,farm%p%NumTurbines   
+      farm%WD(i_turb)%u%xhat_disk      = farm%FWrap(i_turb)%y%xHat_Disk       ! Orientation of rotor centerline, normal to disk
+      farm%WD(i_turb)%u%p_hub          = farm%FWrap(i_turb)%y%p_hub           ! Center position of hub, m
+      farm%WD(i_turb)%u%D_rotor        = farm%FWrap(i_turb)%y%D_rotor         ! Rotor diameter, m
+      farm%WD(i_turb)%u%Vx_rel_disk    = farm%FWrap(i_turb)%y%DiskAvg_Vx_Rel  ! Rotor-disk-averaged relative wind speed (ambient + deficits + motion), normal to disk, m/s
+      farm%WD(i_turb)%u%Ct_azavg       = farm%FWrap(i_turb)%y%AzimAvg_Ct      ! Azimuthally averaged thrust force coefficient (normal to disk), distributed radially, -
+      farm%WD(i_turb)%u%YawErr         = farm%FWrap(i_turb)%y%YawErr          ! Nacelle-yaw error at the wake planes, rad   
+   END DO
+   
+END SUBROUTINE Transfer_FAST_to_WD
 !----------------------------------------------------------------------------------------------------------------------------------
 END MODULE FAST_Farm_Subs
 !**********************************************************************************************************************************
