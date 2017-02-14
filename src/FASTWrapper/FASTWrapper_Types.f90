@@ -87,6 +87,7 @@ IMPLICIT NONE
     REAL(ReKi)  :: dY_high      !< Y-component of the spatial increment of the high-resolution spatial domain for this turbine [m]
     REAL(ReKi)  :: dZ_high      !< Z-component of the spatial increment of the high-resolution spatial domain for this turbine [m]
     INTEGER(IntKi)  :: TurbNum      !< Turbine ID number (start with 1; end with number of turbines) [-]
+    CHARACTER(1024)  :: RootName      !< The root name derived from the primary FAST.Farm input file [For output reporting in this module we need to have Rootname include the turbine number] [-]
   END TYPE FWrap_InitInputType
 ! =======================
 ! =========  FWrap_InitOutputType  =======
@@ -118,6 +119,7 @@ IMPLICIT NONE
   TYPE, PUBLIC :: FWrap_MiscVarType
     TYPE(FAST_TurbineType)  :: Turbine      !< Data for this FAST instance [-]
     TYPE(MeshType) , DIMENSION(:), ALLOCATABLE  :: TempDisp      !< temp displacement mesh (for AzimAvg_Ct) [-]
+    TYPE(MeshType) , DIMENSION(:), ALLOCATABLE  :: TempLoads      !< temp loads mesh (for AzimAvg_Ct) [-]
     TYPE(MeshType) , DIMENSION(:), ALLOCATABLE  :: ADRotorDisk      !< Mesh that does not deflect with the blade (for AzimAvg_Ct) [-]
     TYPE(MeshMapType) , DIMENSION(:), ALLOCATABLE  :: AD_L2L      !< Map AD loads from deflected mesh to rotor-disk plane [-]
   END TYPE FWrap_MiscVarType
@@ -126,7 +128,6 @@ IMPLICIT NONE
   TYPE, PUBLIC :: FWrap_ParameterType
     INTEGER(IntKi)  :: nr      !< Number of radii in the radial finite-difference grid [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: r      !< Discretization of radial finite-difference grid [m]
-    INTEGER(IntKi)  :: n_high_low      !< Number of high-resolution time steps per low-resolution time step [-]
     INTEGER(IntKi)  :: n_FAST_low      !< Number of FAST time steps per low-resolution time step [-]
     REAL(ReKi) , DIMENSION(1:3)  :: p_ref_Turbine      !< Undisplaced global position of this turbine [m]
   END TYPE FWrap_ParameterType
@@ -184,6 +185,7 @@ CONTAINS
     DstInitInputData%dY_high = SrcInitInputData%dY_high
     DstInitInputData%dZ_high = SrcInitInputData%dZ_high
     DstInitInputData%TurbNum = SrcInitInputData%TurbNum
+    DstInitInputData%RootName = SrcInitInputData%RootName
  END SUBROUTINE FWrap_CopyInitInput
 
  SUBROUTINE FWrap_DestroyInitInput( InitInputData, ErrStat, ErrMsg )
@@ -247,6 +249,7 @@ CONTAINS
       Re_BufSz   = Re_BufSz   + 1  ! dY_high
       Re_BufSz   = Re_BufSz   + 1  ! dZ_high
       Int_BufSz  = Int_BufSz  + 1  ! TurbNum
+      Int_BufSz  = Int_BufSz  + 1*LEN(InData%RootName)  ! RootName
   IF ( Re_BufSz  .GT. 0 ) THEN 
      ALLOCATE( ReKiBuf(  Re_BufSz  ), STAT=ErrStat2 )
      IF (ErrStat2 /= 0) THEN 
@@ -306,6 +309,10 @@ CONTAINS
       Re_Xferred   = Re_Xferred   + 1
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%TurbNum
       Int_Xferred   = Int_Xferred   + 1
+        DO I = 1, LEN(InData%RootName)
+          IntKiBuf(Int_Xferred) = ICHAR(InData%RootName(I:I), IntKi)
+          Int_Xferred = Int_Xferred   + 1
+        END DO ! I
  END SUBROUTINE FWrap_PackInitInput
 
  SUBROUTINE FWrap_UnPackInitInput( ReKiBuf, DbKiBuf, IntKiBuf, Outdata, ErrStat, ErrMsg )
@@ -395,6 +402,10 @@ CONTAINS
       Re_Xferred   = Re_Xferred + 1
       OutData%TurbNum = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1
+      DO I = 1, LEN(OutData%RootName)
+        OutData%RootName(I:I) = CHAR(IntKiBuf(Int_Xferred))
+        Int_Xferred = Int_Xferred   + 1
+      END DO ! I
  END SUBROUTINE FWrap_UnPackInitInput
 
  SUBROUTINE FWrap_CopyInitOutput( SrcInitOutputData, DstInitOutputData, CtrlCode, ErrStat, ErrMsg )
@@ -1170,6 +1181,22 @@ IF (ALLOCATED(SrcMiscData%TempDisp)) THEN
          IF (ErrStat>=AbortErrLev) RETURN
     ENDDO
 ENDIF
+IF (ALLOCATED(SrcMiscData%TempLoads)) THEN
+  i1_l = LBOUND(SrcMiscData%TempLoads,1)
+  i1_u = UBOUND(SrcMiscData%TempLoads,1)
+  IF (.NOT. ALLOCATED(DstMiscData%TempLoads)) THEN 
+    ALLOCATE(DstMiscData%TempLoads(i1_l:i1_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstMiscData%TempLoads.', ErrStat, ErrMsg,RoutineName)
+      RETURN
+    END IF
+  END IF
+    DO i1 = LBOUND(SrcMiscData%TempLoads,1), UBOUND(SrcMiscData%TempLoads,1)
+      CALL MeshCopy( SrcMiscData%TempLoads(i1), DstMiscData%TempLoads(i1), CtrlCode, ErrStat2, ErrMsg2 )
+         CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+         IF (ErrStat>=AbortErrLev) RETURN
+    ENDDO
+ENDIF
 IF (ALLOCATED(SrcMiscData%ADRotorDisk)) THEN
   i1_l = LBOUND(SrcMiscData%ADRotorDisk,1)
   i1_u = UBOUND(SrcMiscData%ADRotorDisk,1)
@@ -1219,6 +1246,12 @@ DO i1 = LBOUND(MiscData%TempDisp,1), UBOUND(MiscData%TempDisp,1)
   CALL MeshDestroy( MiscData%TempDisp(i1), ErrStat, ErrMsg )
 ENDDO
   DEALLOCATE(MiscData%TempDisp)
+ENDIF
+IF (ALLOCATED(MiscData%TempLoads)) THEN
+DO i1 = LBOUND(MiscData%TempLoads,1), UBOUND(MiscData%TempLoads,1)
+  CALL MeshDestroy( MiscData%TempLoads(i1), ErrStat, ErrMsg )
+ENDDO
+  DEALLOCATE(MiscData%TempLoads)
 ENDIF
 IF (ALLOCATED(MiscData%ADRotorDisk)) THEN
 DO i1 = LBOUND(MiscData%ADRotorDisk,1), UBOUND(MiscData%ADRotorDisk,1)
@@ -1305,6 +1338,29 @@ ENDIF
          DEALLOCATE(Db_Buf)
       END IF
       IF(ALLOCATED(Int_Buf)) THEN ! TempDisp
+         Int_BufSz = Int_BufSz + SIZE( Int_Buf )
+         DEALLOCATE(Int_Buf)
+      END IF
+    END DO
+  END IF
+  Int_BufSz   = Int_BufSz   + 1     ! TempLoads allocated yes/no
+  IF ( ALLOCATED(InData%TempLoads) ) THEN
+    Int_BufSz   = Int_BufSz   + 2*1  ! TempLoads upper/lower bounds for each dimension
+    DO i1 = LBOUND(InData%TempLoads,1), UBOUND(InData%TempLoads,1)
+      Int_BufSz   = Int_BufSz + 3  ! TempLoads: size of buffers for each call to pack subtype
+      CALL MeshPack( InData%TempLoads(i1), Re_Buf, Db_Buf, Int_Buf, ErrStat2, ErrMsg2, .TRUE. ) ! TempLoads 
+        CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+        IF (ErrStat >= AbortErrLev) RETURN
+
+      IF(ALLOCATED(Re_Buf)) THEN ! TempLoads
+         Re_BufSz  = Re_BufSz  + SIZE( Re_Buf  )
+         DEALLOCATE(Re_Buf)
+      END IF
+      IF(ALLOCATED(Db_Buf)) THEN ! TempLoads
+         Db_BufSz  = Db_BufSz  + SIZE( Db_Buf  )
+         DEALLOCATE(Db_Buf)
+      END IF
+      IF(ALLOCATED(Int_Buf)) THEN ! TempLoads
          Int_BufSz = Int_BufSz + SIZE( Int_Buf )
          DEALLOCATE(Int_Buf)
       END IF
@@ -1423,6 +1479,47 @@ ENDIF
 
     DO i1 = LBOUND(InData%TempDisp,1), UBOUND(InData%TempDisp,1)
       CALL MeshPack( InData%TempDisp(i1), Re_Buf, Db_Buf, Int_Buf, ErrStat2, ErrMsg2, OnlySize ) ! TempDisp 
+        CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+        IF (ErrStat >= AbortErrLev) RETURN
+
+      IF(ALLOCATED(Re_Buf)) THEN
+        IntKiBuf( Int_Xferred ) = SIZE(Re_Buf); Int_Xferred = Int_Xferred + 1
+        IF (SIZE(Re_Buf) > 0) ReKiBuf( Re_Xferred:Re_Xferred+SIZE(Re_Buf)-1 ) = Re_Buf
+        Re_Xferred = Re_Xferred + SIZE(Re_Buf)
+        DEALLOCATE(Re_Buf)
+      ELSE
+        IntKiBuf( Int_Xferred ) = 0; Int_Xferred = Int_Xferred + 1
+      ENDIF
+      IF(ALLOCATED(Db_Buf)) THEN
+        IntKiBuf( Int_Xferred ) = SIZE(Db_Buf); Int_Xferred = Int_Xferred + 1
+        IF (SIZE(Db_Buf) > 0) DbKiBuf( Db_Xferred:Db_Xferred+SIZE(Db_Buf)-1 ) = Db_Buf
+        Db_Xferred = Db_Xferred + SIZE(Db_Buf)
+        DEALLOCATE(Db_Buf)
+      ELSE
+        IntKiBuf( Int_Xferred ) = 0; Int_Xferred = Int_Xferred + 1
+      ENDIF
+      IF(ALLOCATED(Int_Buf)) THEN
+        IntKiBuf( Int_Xferred ) = SIZE(Int_Buf); Int_Xferred = Int_Xferred + 1
+        IF (SIZE(Int_Buf) > 0) IntKiBuf( Int_Xferred:Int_Xferred+SIZE(Int_Buf)-1 ) = Int_Buf
+        Int_Xferred = Int_Xferred + SIZE(Int_Buf)
+        DEALLOCATE(Int_Buf)
+      ELSE
+        IntKiBuf( Int_Xferred ) = 0; Int_Xferred = Int_Xferred + 1
+      ENDIF
+    END DO
+  END IF
+  IF ( .NOT. ALLOCATED(InData%TempLoads) ) THEN
+    IntKiBuf( Int_Xferred ) = 0
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    IntKiBuf( Int_Xferred ) = 1
+    Int_Xferred = Int_Xferred + 1
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%TempLoads,1)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%TempLoads,1)
+    Int_Xferred = Int_Xferred + 2
+
+    DO i1 = LBOUND(InData%TempLoads,1), UBOUND(InData%TempLoads,1)
+      CALL MeshPack( InData%TempLoads(i1), Re_Buf, Db_Buf, Int_Buf, ErrStat2, ErrMsg2, OnlySize ) ! TempLoads 
         CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
         IF (ErrStat >= AbortErrLev) RETURN
 
@@ -1665,6 +1762,62 @@ ENDIF
       IF(ALLOCATED(Int_Buf)) DEALLOCATE(Int_Buf)
     END DO
   END IF
+  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! TempLoads not allocated
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    Int_Xferred = Int_Xferred + 1
+    i1_l = IntKiBuf( Int_Xferred    )
+    i1_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    IF (ALLOCATED(OutData%TempLoads)) DEALLOCATE(OutData%TempLoads)
+    ALLOCATE(OutData%TempLoads(i1_l:i1_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%TempLoads.', ErrStat, ErrMsg,RoutineName)
+       RETURN
+    END IF
+    DO i1 = LBOUND(OutData%TempLoads,1), UBOUND(OutData%TempLoads,1)
+      Buf_size=IntKiBuf( Int_Xferred )
+      Int_Xferred = Int_Xferred + 1
+      IF(Buf_size > 0) THEN
+        ALLOCATE(Re_Buf(Buf_size),STAT=ErrStat2)
+        IF (ErrStat2 /= 0) THEN 
+           CALL SetErrStat(ErrID_Fatal, 'Error allocating Re_Buf.', ErrStat, ErrMsg,RoutineName)
+           RETURN
+        END IF
+        Re_Buf = ReKiBuf( Re_Xferred:Re_Xferred+Buf_size-1 )
+        Re_Xferred = Re_Xferred + Buf_size
+      END IF
+      Buf_size=IntKiBuf( Int_Xferred )
+      Int_Xferred = Int_Xferred + 1
+      IF(Buf_size > 0) THEN
+        ALLOCATE(Db_Buf(Buf_size),STAT=ErrStat2)
+        IF (ErrStat2 /= 0) THEN 
+           CALL SetErrStat(ErrID_Fatal, 'Error allocating Db_Buf.', ErrStat, ErrMsg,RoutineName)
+           RETURN
+        END IF
+        Db_Buf = DbKiBuf( Db_Xferred:Db_Xferred+Buf_size-1 )
+        Db_Xferred = Db_Xferred + Buf_size
+      END IF
+      Buf_size=IntKiBuf( Int_Xferred )
+      Int_Xferred = Int_Xferred + 1
+      IF(Buf_size > 0) THEN
+        ALLOCATE(Int_Buf(Buf_size),STAT=ErrStat2)
+        IF (ErrStat2 /= 0) THEN 
+           CALL SetErrStat(ErrID_Fatal, 'Error allocating Int_Buf.', ErrStat, ErrMsg,RoutineName)
+           RETURN
+        END IF
+        Int_Buf = IntKiBuf( Int_Xferred:Int_Xferred+Buf_size-1 )
+        Int_Xferred = Int_Xferred + Buf_size
+      END IF
+      CALL MeshUnpack( OutData%TempLoads(i1), Re_Buf, Db_Buf, Int_Buf, ErrStat2, ErrMsg2 ) ! TempLoads 
+        CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+        IF (ErrStat >= AbortErrLev) RETURN
+
+      IF(ALLOCATED(Re_Buf )) DEALLOCATE(Re_Buf )
+      IF(ALLOCATED(Db_Buf )) DEALLOCATE(Db_Buf )
+      IF(ALLOCATED(Int_Buf)) DEALLOCATE(Int_Buf)
+    END DO
+  END IF
   IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! ADRotorDisk not allocated
     Int_Xferred = Int_Xferred + 1
   ELSE
@@ -1807,7 +1960,6 @@ IF (ALLOCATED(SrcParamData%r)) THEN
   END IF
     DstParamData%r = SrcParamData%r
 ENDIF
-    DstParamData%n_high_low = SrcParamData%n_high_low
     DstParamData%n_FAST_low = SrcParamData%n_FAST_low
     DstParamData%p_ref_Turbine = SrcParamData%p_ref_Turbine
  END SUBROUTINE FWrap_CopyParam
@@ -1867,7 +2019,6 @@ ENDIF
     Int_BufSz   = Int_BufSz   + 2*1  ! r upper/lower bounds for each dimension
       Re_BufSz   = Re_BufSz   + SIZE(InData%r)  ! r
   END IF
-      Int_BufSz  = Int_BufSz  + 1  ! n_high_low
       Int_BufSz  = Int_BufSz  + 1  ! n_FAST_low
       Re_BufSz   = Re_BufSz   + SIZE(InData%p_ref_Turbine)  ! p_ref_Turbine
   IF ( Re_BufSz  .GT. 0 ) THEN 
@@ -1912,8 +2063,6 @@ ENDIF
       IF (SIZE(InData%r)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%r))-1 ) = PACK(InData%r,.TRUE.)
       Re_Xferred   = Re_Xferred   + SIZE(InData%r)
   END IF
-      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%n_high_low
-      Int_Xferred   = Int_Xferred   + 1
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%n_FAST_low
       Int_Xferred   = Int_Xferred   + 1
       ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%p_ref_Turbine))-1 ) = PACK(InData%p_ref_Turbine,.TRUE.)
@@ -1978,8 +2127,6 @@ ENDIF
       Re_Xferred   = Re_Xferred   + SIZE(OutData%r)
     DEALLOCATE(mask1)
   END IF
-      OutData%n_high_low = IntKiBuf( Int_Xferred ) 
-      Int_Xferred   = Int_Xferred + 1
       OutData%n_FAST_low = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1
     i1_l = LBOUND(OutData%p_ref_Turbine,1)

@@ -91,7 +91,7 @@ IMPLICIT NONE
     CHARACTER(20)  :: OutFmt_t      !< Format used for time channel in text tabular output; resulting field should be 10 characters [-]
     INTEGER(IntKi)  :: FmtWidth      !< width of the time OutFmt specifier [-]
     INTEGER(IntKi)  :: TChanLen      !< width of the time channel [-]
-    INTEGER(IntKi)  :: n_TMax_m1      !< The time step of TMax - dt (the end time of the simulation) [-]
+    INTEGER(IntKi)  :: n_TMax_m1      !< Number of the time step of TMax - dt (the end time of the simulation) [-]
   END TYPE Farm_ParameterType
 ! =======================
 ! =========  FASTWrapper_Data  =======

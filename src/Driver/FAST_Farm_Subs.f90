@@ -119,7 +119,7 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
       !-------------------
       ! a. CALL AWAE_Init
    
-   farm%p%dt = 0.00625_DbKi ! this  dt will get set in the AWAE module
+   farm%p%dt = 0.0625_DbKi ! this  dt will get set in the AWAE module
    farm%p%n_TMax_m1  = CEILING( ( farm%p%TMax / farm%p%DT ) ) - 1 ! We're going to go from step 0 to n_TMax (thus the -1 here)
       
    
@@ -379,7 +379,7 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, WD_InitInp, ErrStat, ErrMsg )
          RETURN        
       end if      
 
-      ! WT_Position and WT_FASTInFile
+      ! WT_Position (WT_X, WT_Y, WT_Z) and WT_FASTInFile
    do i=1,p%NumTurbines
       READ (UnIn, *, IOSTAT=IOS) p%WT_Position(:,i), p%WT_FASTInFile(i)
       
@@ -895,6 +895,7 @@ SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
          FWrap_InitInp%FASTInFile    = farm%p%WT_FASTInFile(i_turb)
          FWrap_InitInp%p_ref_Turbine = farm%p%WT_Position(:,i_turb)
          FWrap_InitInp%TurbNum       = i_turb
+         FWrap_InitInp%RootName      = trim(farm%p%OutFileRoot)//'.T'//trim(num2lstr(i_turb))
          
             ! note that FWrap_Init has Interval as INTENT(IN) so, we don't need to worry about overwriting farm%p%dt here:
          call FWrap_Init( FWrap_InitInp, farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
@@ -961,14 +962,14 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
    DO i_turb = 1,farm%p%NumTurbines
    ! allocated in FAST's IfW initialization as 3,x,y,z,t
       farm%FWrap(i_turb)%u%V_high_dist(1,:,:,:,:) = 10.0_ReKi
-      farm%FWrap(i_turb)%u%V_high_dist(2:3,:,:,:,:) = 0.1_ReKi
+      farm%FWrap(i_turb)%u%V_high_dist(2:3,:,:,:,:) = 0.0_ReKi
    END DO
    
    
    DO i_turb = 1,farm%p%NumTurbines
-      farm%WD(i_turb)%u%V_plane        = 1  ! Advection, deflection, and meandering velocity of wake planes, m/s
-      farm%WD(i_turb)%u%Vx_wind_disk   = 10  ! Rotor-disk-averaged ambient wind speed, normal to planes, m/s
-      farm%WD(i_turb)%u%TI_amb         = .15  ! Ambient turbulence intensity of wind at rotor disk
+      farm%WD(i_turb)%u%V_plane        =  9     ! Advection, deflection, and meandering velocity of wake planes, m/s
+      farm%WD(i_turb)%u%Vx_wind_disk   = 10     ! Rotor-disk-averaged ambient wind speed, normal to planes, m/s
+      farm%WD(i_turb)%u%TI_amb         =  0.10  ! Ambient turbulence intensity of wind at rotor disk
    END DO
    
    
@@ -987,7 +988,7 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
    !END DO
    
    !.......................................................................................
-   ! CALL F_t0
+   ! CALL F_t0 (can be done in parallel)
    !.......................................................................................
          
    DO i_turb = 1,farm%p%NumTurbines
@@ -1168,7 +1169,7 @@ subroutine FARM_CalcOutput(t, farm, ErrStat, ErrMsg)
       ! 2. Transfer y_AWAE to u_F 
    
    DO i_turb = 1,farm%p%NumTurbines
-      farm%FWrap(i_turb)%u%V_high_dist = 10.0_ReKi + t/farm%p%tMax
+      farm%FWrap(i_turb)%u%V_high_dist(1,:,:,:,:) = 10.0_ReKi !+ t/farm%p%tMax
    END DO
    
    

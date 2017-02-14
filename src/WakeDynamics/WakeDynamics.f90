@@ -191,16 +191,19 @@ subroutine ThomasAlgorithm(nr, a, b, c, d, x, errStat, errMsg)
    if ( abs(b(0)) <= abs(c(0)) ) then
       ! TEST: E16
        call SetErrStat( ErrID_Fatal, 'Tridiagonal matrix is not diagonally dominant, i.e., abs(b(0)) <= abs(c(0)). Try reducing the FAST.Farm timestep.', errStat, errMsg, RoutineName )
+       return
    end if
    do i = 1,nr-2
       if ( abs(b(i)) <= ( abs(a(i))+abs(c(i)) ) ) then
          ! TEST: E17
           call SetErrStat( ErrID_Fatal, 'Tridiagonal matrix is not diagonally dominant, i.e., abs(b(i)) <= ( abs(a(i))+abs(c(i)) ). Try reducing the FAST.Farm timestep.', errStat, errMsg, RoutineName )
+          return
       end if
    end do
    if ( abs(b(nr-1)) <= abs(a(nr-1)) ) then
       ! TEST: E18
        call SetErrStat( ErrID_Fatal, 'Tridiagonal matrix is not diagonally dominant, i.e., abs(b(nr-1)) <= abs(a(nr-1)). Try reducing the FAST.Farm timestep.', errStat, errMsg, RoutineName )
+       return
    end if
    
    do i = 1,nr-1 
@@ -769,7 +772,7 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
          ! TEST: E6
          call SetErrStat(ErrID_FATAL, 'Local induction is high enough to invalidate the near-wake correction, i.e., m%a(i) >= 1.0_ReKi / p%C_NearWake.', errStat, errMsg, RoutineName) 
          call Cleanup()
-      return
+         return
       end if
       
       if (j > 0) then

@@ -33,7 +33,7 @@ MODULE FASTWrapper
 
    PRIVATE
 
-   TYPE(ProgDesc), PARAMETER  :: FWrap_Ver = ProgDesc( 'FASTWrapper', 'v1.00.00', '2-Dec-2016' ) !< module date/version information
+   TYPE(ProgDesc), PARAMETER  :: FWrap_Ver = ProgDesc( 'FASTWrapper', 'v1.00.00', '7-Feb-2017' ) !< module date/version information
 
    REAL(DbKi),  PARAMETER  :: t_initial = 0.0_DbKi                    ! Initial time
 
@@ -106,7 +106,6 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
    z%Dummy          = 0.0_ReKi
    OtherState%Dummy = 0.0_ReKi
 
-      ! define optimization variables here:
 
       ! Define initial guess for the system inputs here:
 
@@ -129,6 +128,7 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       ExternInitData%TurbinePos = InitInp%p_ref_Turbine
       
       ExternInitData%FarmIntegration = .true.
+      ExternInitData%RootName = InitInp%RootName
             
          !.... 4D-wind data ....
       ExternInitData%windGrid_n(1) = InitInp%nX_high
@@ -141,7 +141,7 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       ExternInitData%windGrid_delta(3) = InitInp%dZ_high
       ExternInitData%windGrid_delta(4) = InitInp%dt_high
       
-      ExternInitData%windGrid_pZero = InitInp%p_ref_high
+      ExternInitData%windGrid_pZero = InitInp%p_ref_high - InitInp%p_ref_Turbine
             
       
       CALL FAST_InitializeAll_T( t_initial, InitInp%TurbNum, m%Turbine, ErrStat2, ErrMsg2, InitInp%FASTInFile, ExternInitData ) 
@@ -162,6 +162,12 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       end if
       
          ! move the misc var to the input variable...
+      if (m%Turbine%p_FAST%CompInflow /= MODULE_IfW) then
+         call SetErrStat(ErrID_Fatal,"InflowWind must be used in each instance of FAST for FAST.Farm.",ErrStat,ErrMsg,RoutineName)
+         call cleanup()
+         return
+      end if
+      
       call move_alloc(m%Turbine%IfW%m%FDext%V, u%V_high_dist)
          
       
@@ -183,7 +189,7 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       call AllocAry(y%AzimAvg_Ct, p%nr, 'y%AzimAvg_Ct (azimuth-averaged ct)', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
          
       nb = size(m%Turbine%AD%y%BladeLoad)
-      Allocate( m%ADRotorDisk(nb), m%TempDisp(nb), m%AD_L2L(nb), STAT=ErrStat2 )
+      Allocate( m%ADRotorDisk(nb), m%TempDisp(nb), m%TempLoads(nb), m%AD_L2L(nb), STAT=ErrStat2 )
       if (ErrStat2 /= 0) then
          call SetErrStat(ErrID_Fatal,"Error allocating space for ADRotorDisk meshes.",ErrStat,ErrMsg,RoutineName)
          call cleanup()
@@ -192,8 +198,24 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       
       do k=1,nb
          
-         call meshCopy(m%Turbine%AD%y%BladeLoad(k), m%TempDisp(k), MESH_COUSIN, ErrStat2, ErrMsg2)
+         call meshCopy(  SrcMesh         = m%Turbine%AD%y%BladeLoad(k) &
+                       , DestMesh        = m%TempDisp(k)         & 
+                       , CtrlCode        = MESH_COUSIN           &  ! Like a sibling, except using new memory for position/refOrientation and elements
+                       , Orientation     = .TRUE.                &  ! set automatically to identity
+                       , TranslationDisp = .TRUE.                &  ! set automatically to 0
+                       , ErrStat         = ErrStat2              &
+                       , ErrMess         = ErrMsg2               )
             call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+       
+         call meshCopy(  SrcMesh         = m%TempDisp(k)         &
+                       , DestMesh        = m%TempLoads(k)        & 
+                       , CtrlCode        = MESH_SIBLING          &
+                       , Force           = .true.                &
+                       , Moment          = .true.                &
+                       , ErrStat         = ErrStat2              &
+                       , ErrMess         = ErrMsg2               )
+            call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+                        
             
          call MeshCreate ( BlankMesh         = m%ADRotorDisk(k) &
                           ,IOS               = COMPONENT_OUTPUT &
@@ -225,7 +247,7 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
             call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
             if (errStat >= AbortErrLev) exit
             
-         call MeshMapCreate(m%Turbine%AD%y%BladeLoad(k), m%ADRotorDisk(k), m%AD_L2L(k), ErrStat2, ErrMsg2)           
+         call MeshMapCreate(m%TempLoads(k), m%ADRotorDisk(k), m%AD_L2L(k), ErrStat2, ErrMsg2) ! this is going to transfer the motions as well as the loads, which is overkill
             call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
       end do
       
@@ -266,16 +288,8 @@ subroutine SetParameters(InitInp, p, dt_FAST, InitInp_dt, ErrStat, ErrMsg)
    
    p%p_ref_Turbine = InitInp%p_ref_Turbine  
    p%nr            = InitInp%nr              
-   p%n_high_low    = InitInp%n_high_low  
-   !p%dt_high       = InitInp%dt_high
-   !p%nX_high       = InitInp%nX_high    
-   !p%nY_high       = InitInp%nY_high    
-   !p%nZ_high       = InitInp%nZ_high    
 
    call AllocAry(p%r, p%nr, 'p%r (radial discretization)', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !call AllocAry(p%X_high, p%nX_high, 'p%X_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !call AllocAry(p%Y_high, p%nY_high, 'p%Y_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-   !call AllocAry(p%Z_high, p%nZ_high, 'p%Z_high', ErrStat2, ErrMsg2); call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
 
    if (ErrStat>=AbortErrLev) return
    
@@ -283,20 +297,8 @@ subroutine SetParameters(InitInp, p, dt_FAST, InitInp_dt, ErrStat, ErrMsg)
       p%r(i+1) = i*InitInp%dr
    end do
    
-   !BJJ: IT MIGHT be easier to just save the deltas so we can interpolate into these fields...
-   !do i=1,p%nX_high
-   !   p%X_high(i) = InitInp%p_ref_high(1) + i*InitInp%dX_high
-   !end do
-   !
-   !do i=1,p%nY_high
-   !   p%Y_high(i) = InitInp%p_ref_high(2) + i*InitInp%dY_high
-   !end do
-   !
-   !do i=1,p%nZ_high
-   !   p%Z_high(i) = InitInp%p_ref_high(3) + i*InitInp%dZ_high
-   !end do
    
-   ! this one will have to be set after we initialize FAST, because we need to know what the FAST time step is going to be.    
+   ! p%n_FAST_low has to be set AFTER we initialize FAST, because we need to know what the FAST time step is going to be.    
    IF ( EqualRealNos( dt_FAST, InitInp_dt ) ) THEN
       p%n_FAST_low = 1
    ELSE
@@ -311,7 +313,7 @@ subroutine SetParameters(InitInp, p, dt_FAST, InitInp_dt, ErrStat, ErrMsg)
             ! let's make sure the FAST DT is an exact integer divisor of the global (FAST.Farm) time step:
          IF ( .NOT. EqualRealNos( InitInp_dt, dt_FAST * p%n_FAST_low )  ) THEN
             ErrStat = ErrID_Fatal
-            ErrMsg  = "The FAST module time step ("//TRIM(Num2LStr(dt_FAST))// &
+            ErrMsg  = "The FASTWrapper module time step ("//TRIM(Num2LStr(dt_FAST))// &
                       " s) must be an integer divisor of the FAST.Farm time step ("//TRIM(Num2LStr(InitInp_dt))//" s)."
          END IF
             
@@ -423,13 +425,13 @@ SUBROUTINE FWrap_Increment( t, n, u, p, x, xd, z, OtherState, y, m, ErrStat, Err
    ErrStat   = ErrID_None           ! no error has occurred
    ErrMsg    = ''
 
-   IF ( n > m%Turbine%p_FAST%n_TMax_m1 - p%n_FAST_low ) THEN !finish 
-      
-      call setErrStat(ErrID_Fatal,"programming error: FAST.Farm has exceeded FAST's TMax",ErrStat,ErrMsg,RoutineName)
-      return
-      
-   ELSE
-      
+   !IF ( n > m%Turbine%p_FAST%n_TMax_m1 - p%n_FAST_low ) THEN !finish 
+   !   
+   !   call setErrStat(ErrID_Fatal,"programming error: FAST.Farm has exceeded FAST's TMax",ErrStat,ErrMsg,RoutineName)
+   !   return
+   !   
+   !ELSE
+   !   
          ! set the inputs needed for FAST
       call FWrap_SetInputs(u, m, t)
       
@@ -446,7 +448,7 @@ SUBROUTINE FWrap_Increment( t, n, u, p, x, xd, z, OtherState, y, m, ErrStat, Err
       call FWrap_CalcOutput(p, u, y, m, ErrStat2, ErrMsg2)
          call setErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
       
-   END IF
+   !END IF
 
 
 END SUBROUTINE FWrap_Increment
@@ -563,21 +565,24 @@ SUBROUTINE FWrap_CalcOutput(p, u, y, m, ErrStat, ErrMsg)
    y%p_hub = p%p_ref_Turbine + p0     
    
    ! Rotor diameter, m
-   y%D_rotor = 2.0_ReKi * maxval(m%Turbine%AD%m%BEMT_u(indx)%rLocal)
+   y%D_rotor = 2.0_ReKi * maxval(m%Turbine%AD%m%BEMT_u(indx)%rLocal) ! BEMT_u(indx) is calculated on inputs that were passed INTO AD_CalcOutput; Input(1) is calculated from values passed out of ED_CalcOutput AFTER AD_CalcOutput
 
+   if ( y%D_rotor > p%r(p%nr) ) then
+      call SetErrStat(ErrID_Fatal,"The radius of the wake planes is not large relative to the rotor diameter.", ErrStat,ErrMsg,RoutineName) 
+   end if
+   
    ! Rotor-disk-averaged relative wind speed (ambient + deficits + motion), normal to disk, m/s
    y%DiskAvg_Vx_Rel = m%Turbine%AD%m%V_dot_x
    
-   ! Azimuthally averaged thrust force coefficient (normal to disk), distributed radially
-   !bjj: FIX ME!!!!!
-   !y%AzimAvg_Ct  = 0 !               {:}    
-      
+   ! Azimuthally averaged thrust force coefficient (normal to disk), distributed radially      
    theta = 0.0_ReKi
    do k=1,size(m%ADRotorDisk)
             
       m%TempDisp(k)%RefOrientation = m%Turbine%AD%Input(1)%BladeMotion(k)%Orientation      
       m%TempDisp(k)%Position       = m%Turbine%AD%Input(1)%BladeMotion(k)%Position + m%Turbine%AD%Input(1)%BladeMotion(k)%TranslationDisp     
      !m%TempDisp(k)%TranslationDisp = 0.0_R8Ki
+      m%TempLoads(k)%Force         = m%Turbine%AD%y%BladeLoad(k)%Force
+      m%TempLoads(k)%Moment        = m%Turbine%AD%y%BladeLoad(k)%Moment
       
       theta(1) = m%Turbine%AD%m%hub_theta_x_root(k)
       orientation = EulerConstruct( theta )
@@ -589,17 +594,18 @@ SUBROUTINE FWrap_CalcOutput(p, u, y, m, ErrStat, ErrMsg)
      !m%ADRotorDisk(k)%TranslationDisp = 0.0_ReKi
       m%ADRotorDisk(k)%RemapFlag = .true.
    
-      call transfer_line2_to_line2(m%Turbine%AD%y%BladeLoad(k), m%ADRotorDisk(k), m%AD_L2L(k), ErrStat2, ErrMsg2, m%TempDisp(k), m%ADRotorDisk(k))
+      call transfer_line2_to_line2(m%TempLoads(k), m%ADRotorDisk(k), m%AD_L2L(k), ErrStat2, ErrMsg2, m%TempDisp(k), m%ADRotorDisk(k))
          call setErrStat(ErrStat2,ErrMsg2,ErrStat2,ErrMsg,RoutineName)
          if (ErrStat >= AbortErrLev) return
    end do
          
-   y%AzimAvg_Ct(1) = 0.0_ReKi
-   do j=2,p%nr
+   if (EqualRealNos(y%DiskAvg_Vx_Rel,0.0_ReKi)) then
+      y%AzimAvg_Ct = 0.0_ReKi
+   else
+      y%AzimAvg_Ct(1) = 0.0_ReKi
+      
+      do j=2,p%nr
          
-      if (EqualRealNos(y%DiskAvg_Vx_Rel,0.0_ReKi)) then
-         y%AzimAvg_Ct(j) = 0.0_ReKi
-      else
          num = 0.0_ReKi
          do k=1,size(m%ADRotorDisk)
             num   =  num + dot_product( y%xHat_Disk, m%ADRotorDisk(k)%Force(:,j) )
@@ -608,9 +614,9 @@ SUBROUTINE FWrap_CalcOutput(p, u, y, m, ErrStat, ErrMsg)
          denom = m%Turbine%AD%p%AirDens * pi * p%r(j) * y%DiskAvg_Vx_Rel**2
             
          y%AzimAvg_Ct(j) = num / denom
-      end if
+      end do
          
-   end do     
+   end if  
       
 END SUBROUTINE FWrap_CalcOutput
 !----------------------------------------------------------------------------------------------------------------------------------
@@ -623,7 +629,7 @@ SUBROUTINE FWrap_SetInputs(u, m, t)
 
    ! set the 4d-wind-inflow input array (a bit of a hack [simplification] so that we don't have large amounts of data copied in multiple data structures):
       call move_alloc(u%V_high_dist, m%Turbine%IfW%m%FDext%V)
-      m%Turbine%IfW%m%FDext%TgridStart = t !bjj: is this correct?????
+      m%Turbine%IfW%m%FDext%TgridStart = t 
       
    ! do something with the inputs from the super-controller:
       

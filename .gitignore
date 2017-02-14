@@ -55,6 +55,9 @@ BuildLog.htm
 *.tar.gz
 *.tar
 
+*.sum
+*.outb
+
 # NWTC web developer
 /ArcFiles.txt
 /SourceFiles.txt

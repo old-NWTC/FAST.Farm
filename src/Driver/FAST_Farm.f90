@@ -50,7 +50,6 @@ type(All_FastFarm_Data)               :: farm
 type(FWrap_InitInputType)             :: FWrap_InitInp
 type(FWrap_InitOutputType)            :: FWrap_InitOut
 
-!Note: Multiple entries in the same row implies that the operations can be done in parallel
 !FAST.Farm Driver
 !     Initialization
 !     Initial Calculate Output
@@ -75,12 +74,16 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
    !   
    ELSE
       Restart_step = 0
+
+      !...............................................................................................................................
+      ! Initialization
+      !............................................................................................................................... 
       
       call Farm_Initialize( farm, InputFileName, ErrStat, ErrMsg )
          CALL CheckError( ErrStat, ErrMsg, 'during driver initialization' )
             
       !...............................................................................................................................
-      ! Initialization: (calculate outputs based on states at t=0 as well as guesses of inputs and constraint states)
+      ! Initial Calculate Output
       !............................................................................................................................... 
          
       call FARM_InitialCO(farm, ErrStat, ErrMsg)   
@@ -91,7 +94,7 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
    
       
    !...............................................................................................................................
-   ! Time Stepping:
+   ! Time Increment:
    !...............................................................................................................................         
    
    DO n_t_global = Restart_step, farm%p%n_TMax_m1 
@@ -121,9 +124,9 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
    END DO ! n_t_global
    
    
-   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !  Write simulation times and stop
-   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   !...............................................................................................................................
+   ! End:
+   !...............................................................................................................................         
    
    call FARM_End(farm, ErrStat, ErrMsg)
    

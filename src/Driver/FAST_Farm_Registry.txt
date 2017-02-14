@@ -16,8 +16,6 @@ usefrom FASTWrapper_Registry.txt
 usefrom WakeDynamics_Registry.txt
 
 # ..... Parameters ................................................................................................................
-# Define parameters here:
-# Time step for integration of continuous states (if a fixed-step integrator is used) and update of discrete states:
 typedef  FAST_Farm/Farm  ParameterType         DbKi            DT              -    - - "Time step for cont. state integration & disc. state update" seconds
 typedef  ^               ParameterType         DbKi            TMax            -    - - "Total run time" seconds
 typedef  ^               ParameterType         IntKi           NumTurbines     -    - - "Number of turbines in the simulation" -
@@ -35,7 +33,7 @@ typedef  ^               ParameterType         CHARACTER(20)   OutFmt          -
 typedef  ^               ParameterType         CHARACTER(20)   OutFmt_t        -    - - "Format used for time channel in text tabular output; resulting field should be 10 characters" -
 typedef  ^               ParameterType         IntKi           FmtWidth        -    - - "width of the time OutFmt specifier" -
 typedef  ^               ParameterType         IntKi           TChanLen        -    - - "width of the time channel" -
-typedef  ^               ParameterType         IntKi           n_TMax_m1       -    - - "The time step of TMax - dt (the end time of the simulation)" -
+typedef  ^               ParameterType         IntKi           n_TMax_m1       -    - - "Number of the time step of TMax - dt (the end time of the simulation)" -
 
 # ..... FASTWrapper data .......................................................................................................
 typedef    ^    FASTWrapper_Data  FWrap_ContinuousStateType x             -   -         -   "Continuous states"
