@@ -109,7 +109,9 @@ IMPLICIT NONE
   TYPE, PUBLIC :: WD_MiscVarType
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: dvdr      !<  [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: dvtdr      !<  [-]
-    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: vt      !<  [-]
+    REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: vt_tot      !<  [-]
+    REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: vt_amb      !<  [-]
+    REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: vt_shr      !<  [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: a      !<  [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: b      !<  [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: c      !<  [-]
@@ -119,7 +121,7 @@ IMPLICIT NONE
 ! =======================
 ! =========  WD_ParameterType  =======
   TYPE, PUBLIC :: WD_ParameterType
-    REAL(DbKi)  :: DT      !< Time interval for wake dynamics calculations {or default} [s]
+    REAL(DbKi)  :: dt      !< Time interval for wake dynamics calculations {or default} [s]
     INTEGER(IntKi)  :: NumPlanes      !< Number of wake planes [-]
     INTEGER(IntKi)  :: NumRadii      !< Number of radii in the radial finite-difference grid [-]
     REAL(ReKi)  :: dr      !< Radial increment of radial finite-difference grid [m]
@@ -366,6 +368,7 @@ CONTAINS
   LOGICAL, ALLOCATABLE           :: mask3(:,:,:)
   LOGICAL, ALLOCATABLE           :: mask4(:,:,:,:)
   LOGICAL, ALLOCATABLE           :: mask5(:,:,:,:,:)
+  LOGICAL, ALLOCATABLE           :: mask6(:,:,:,:,:,:)
   INTEGER(IntKi)                 :: i1, i1_l, i1_u  !  bounds (upper/lower) for an array dimension 1
   INTEGER(IntKi)                 :: i2, i2_l, i2_u  !  bounds (upper/lower) for an array dimension 2
   INTEGER(IntKi)                 :: ErrStat2
@@ -591,6 +594,7 @@ CONTAINS
   LOGICAL, ALLOCATABLE           :: mask3(:,:,:)
   LOGICAL, ALLOCATABLE           :: mask4(:,:,:,:)
   LOGICAL, ALLOCATABLE           :: mask5(:,:,:,:,:)
+  LOGICAL, ALLOCATABLE           :: mask6(:,:,:,:,:,:)
   INTEGER(IntKi)                 :: ErrStat2
   CHARACTER(ErrMsgLen)           :: ErrMsg2
   CHARACTER(*), PARAMETER        :: RoutineName = 'WD_UnPackInitInput'
@@ -885,6 +889,7 @@ ENDIF
   LOGICAL, ALLOCATABLE           :: mask3(:,:,:)
   LOGICAL, ALLOCATABLE           :: mask4(:,:,:,:)
   LOGICAL, ALLOCATABLE           :: mask5(:,:,:,:,:)
+  LOGICAL, ALLOCATABLE           :: mask6(:,:,:,:,:,:)
   INTEGER(IntKi)                 :: i1, i1_l, i1_u  !  bounds (upper/lower) for an array dimension 1
   INTEGER(IntKi)                 :: ErrStat2
   CHARACTER(ErrMsgLen)           :: ErrMsg2
@@ -1109,6 +1114,7 @@ ENDIF
   LOGICAL, ALLOCATABLE           :: mask3(:,:,:)
   LOGICAL, ALLOCATABLE           :: mask4(:,:,:,:)
   LOGICAL, ALLOCATABLE           :: mask5(:,:,:,:,:)
+  LOGICAL, ALLOCATABLE           :: mask6(:,:,:,:,:,:)
   INTEGER(IntKi)                 :: ErrStat2
   CHARACTER(ErrMsgLen)           :: ErrMsg2
   CHARACTER(*), PARAMETER        :: RoutineName = 'WD_UnPackContState'
@@ -1592,6 +1598,7 @@ ENDIF
   LOGICAL, ALLOCATABLE           :: mask3(:,:,:)
   LOGICAL, ALLOCATABLE           :: mask4(:,:,:,:)
   LOGICAL, ALLOCATABLE           :: mask5(:,:,:,:,:)
+  LOGICAL, ALLOCATABLE           :: mask6(:,:,:,:,:,:)
   INTEGER(IntKi)                 :: i1, i1_l, i1_u  !  bounds (upper/lower) for an array dimension 1
   INTEGER(IntKi)                 :: i2, i2_l, i2_u  !  bounds (upper/lower) for an array dimension 2
   INTEGER(IntKi)                 :: ErrStat2
@@ -1967,6 +1974,7 @@ ENDIF
   LOGICAL, ALLOCATABLE           :: mask3(:,:,:)
   LOGICAL, ALLOCATABLE           :: mask4(:,:,:,:)
   LOGICAL, ALLOCATABLE           :: mask5(:,:,:,:,:)
+  LOGICAL, ALLOCATABLE           :: mask6(:,:,:,:,:,:)
   INTEGER(IntKi)                 :: ErrStat2
   CHARACTER(ErrMsgLen)           :: ErrMsg2
   CHARACTER(*), PARAMETER        :: RoutineName = 'WD_UnPackConstrState'
@@ -2098,6 +2106,7 @@ ENDIF
   LOGICAL, ALLOCATABLE           :: mask3(:,:,:)
   LOGICAL, ALLOCATABLE           :: mask4(:,:,:,:)
   LOGICAL, ALLOCATABLE           :: mask5(:,:,:,:,:)
+  LOGICAL, ALLOCATABLE           :: mask6(:,:,:,:,:,:)
   INTEGER(IntKi)                 :: ErrStat2
   CHARACTER(ErrMsgLen)           :: ErrMsg2
   CHARACTER(*), PARAMETER        :: RoutineName = 'WD_UnPackOtherState'
@@ -2124,6 +2133,7 @@ ENDIF
 ! Local 
    INTEGER(IntKi)                 :: i,j,k
    INTEGER(IntKi)                 :: i1, i1_l, i1_u  !  bounds (upper/lower) for an array dimension 1
+   INTEGER(IntKi)                 :: i2, i2_l, i2_u  !  bounds (upper/lower) for an array dimension 2
    INTEGER(IntKi)                 :: ErrStat2
    CHARACTER(ErrMsgLen)           :: ErrMsg2
    CHARACTER(*), PARAMETER        :: RoutineName = 'WD_CopyMisc'
@@ -2154,17 +2164,47 @@ IF (ALLOCATED(SrcMiscData%dvtdr)) THEN
   END IF
     DstMiscData%dvtdr = SrcMiscData%dvtdr
 ENDIF
-IF (ALLOCATED(SrcMiscData%vt)) THEN
-  i1_l = LBOUND(SrcMiscData%vt,1)
-  i1_u = UBOUND(SrcMiscData%vt,1)
-  IF (.NOT. ALLOCATED(DstMiscData%vt)) THEN 
-    ALLOCATE(DstMiscData%vt(i1_l:i1_u),STAT=ErrStat2)
+IF (ALLOCATED(SrcMiscData%vt_tot)) THEN
+  i1_l = LBOUND(SrcMiscData%vt_tot,1)
+  i1_u = UBOUND(SrcMiscData%vt_tot,1)
+  i2_l = LBOUND(SrcMiscData%vt_tot,2)
+  i2_u = UBOUND(SrcMiscData%vt_tot,2)
+  IF (.NOT. ALLOCATED(DstMiscData%vt_tot)) THEN 
+    ALLOCATE(DstMiscData%vt_tot(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
     IF (ErrStat2 /= 0) THEN 
-      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstMiscData%vt.', ErrStat, ErrMsg,RoutineName)
+      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstMiscData%vt_tot.', ErrStat, ErrMsg,RoutineName)
       RETURN
     END IF
   END IF
-    DstMiscData%vt = SrcMiscData%vt
+    DstMiscData%vt_tot = SrcMiscData%vt_tot
+ENDIF
+IF (ALLOCATED(SrcMiscData%vt_amb)) THEN
+  i1_l = LBOUND(SrcMiscData%vt_amb,1)
+  i1_u = UBOUND(SrcMiscData%vt_amb,1)
+  i2_l = LBOUND(SrcMiscData%vt_amb,2)
+  i2_u = UBOUND(SrcMiscData%vt_amb,2)
+  IF (.NOT. ALLOCATED(DstMiscData%vt_amb)) THEN 
+    ALLOCATE(DstMiscData%vt_amb(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstMiscData%vt_amb.', ErrStat, ErrMsg,RoutineName)
+      RETURN
+    END IF
+  END IF
+    DstMiscData%vt_amb = SrcMiscData%vt_amb
+ENDIF
+IF (ALLOCATED(SrcMiscData%vt_shr)) THEN
+  i1_l = LBOUND(SrcMiscData%vt_shr,1)
+  i1_u = UBOUND(SrcMiscData%vt_shr,1)
+  i2_l = LBOUND(SrcMiscData%vt_shr,2)
+  i2_u = UBOUND(SrcMiscData%vt_shr,2)
+  IF (.NOT. ALLOCATED(DstMiscData%vt_shr)) THEN 
+    ALLOCATE(DstMiscData%vt_shr(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstMiscData%vt_shr.', ErrStat, ErrMsg,RoutineName)
+      RETURN
+    END IF
+  END IF
+    DstMiscData%vt_shr = SrcMiscData%vt_shr
 ENDIF
 IF (ALLOCATED(SrcMiscData%a)) THEN
   i1_l = LBOUND(SrcMiscData%a,1)
@@ -2243,8 +2283,14 @@ ENDIF
 IF (ALLOCATED(MiscData%dvtdr)) THEN
   DEALLOCATE(MiscData%dvtdr)
 ENDIF
-IF (ALLOCATED(MiscData%vt)) THEN
-  DEALLOCATE(MiscData%vt)
+IF (ALLOCATED(MiscData%vt_tot)) THEN
+  DEALLOCATE(MiscData%vt_tot)
+ENDIF
+IF (ALLOCATED(MiscData%vt_amb)) THEN
+  DEALLOCATE(MiscData%vt_amb)
+ENDIF
+IF (ALLOCATED(MiscData%vt_shr)) THEN
+  DEALLOCATE(MiscData%vt_shr)
 ENDIF
 IF (ALLOCATED(MiscData%a)) THEN
   DEALLOCATE(MiscData%a)
@@ -2308,10 +2354,20 @@ ENDIF
     Int_BufSz   = Int_BufSz   + 2*1  ! dvtdr upper/lower bounds for each dimension
       Re_BufSz   = Re_BufSz   + SIZE(InData%dvtdr)  ! dvtdr
   END IF
-  Int_BufSz   = Int_BufSz   + 1     ! vt allocated yes/no
-  IF ( ALLOCATED(InData%vt) ) THEN
-    Int_BufSz   = Int_BufSz   + 2*1  ! vt upper/lower bounds for each dimension
-      Re_BufSz   = Re_BufSz   + SIZE(InData%vt)  ! vt
+  Int_BufSz   = Int_BufSz   + 1     ! vt_tot allocated yes/no
+  IF ( ALLOCATED(InData%vt_tot) ) THEN
+    Int_BufSz   = Int_BufSz   + 2*2  ! vt_tot upper/lower bounds for each dimension
+      Re_BufSz   = Re_BufSz   + SIZE(InData%vt_tot)  ! vt_tot
+  END IF
+  Int_BufSz   = Int_BufSz   + 1     ! vt_amb allocated yes/no
+  IF ( ALLOCATED(InData%vt_amb) ) THEN
+    Int_BufSz   = Int_BufSz   + 2*2  ! vt_amb upper/lower bounds for each dimension
+      Re_BufSz   = Re_BufSz   + SIZE(InData%vt_amb)  ! vt_amb
+  END IF
+  Int_BufSz   = Int_BufSz   + 1     ! vt_shr allocated yes/no
+  IF ( ALLOCATED(InData%vt_shr) ) THEN
+    Int_BufSz   = Int_BufSz   + 2*2  ! vt_shr upper/lower bounds for each dimension
+      Re_BufSz   = Re_BufSz   + SIZE(InData%vt_shr)  ! vt_shr
   END IF
   Int_BufSz   = Int_BufSz   + 1     ! a allocated yes/no
   IF ( ALLOCATED(InData%a) ) THEN
@@ -2391,18 +2447,53 @@ ENDIF
       IF (SIZE(InData%dvtdr)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%dvtdr))-1 ) = PACK(InData%dvtdr,.TRUE.)
       Re_Xferred   = Re_Xferred   + SIZE(InData%dvtdr)
   END IF
-  IF ( .NOT. ALLOCATED(InData%vt) ) THEN
+  IF ( .NOT. ALLOCATED(InData%vt_tot) ) THEN
     IntKiBuf( Int_Xferred ) = 0
     Int_Xferred = Int_Xferred + 1
   ELSE
     IntKiBuf( Int_Xferred ) = 1
     Int_Xferred = Int_Xferred + 1
-    IntKiBuf( Int_Xferred    ) = LBOUND(InData%vt,1)
-    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%vt,1)
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%vt_tot,1)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%vt_tot,1)
+    Int_Xferred = Int_Xferred + 2
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%vt_tot,2)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%vt_tot,2)
     Int_Xferred = Int_Xferred + 2
 
-      IF (SIZE(InData%vt)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%vt))-1 ) = PACK(InData%vt,.TRUE.)
-      Re_Xferred   = Re_Xferred   + SIZE(InData%vt)
+      IF (SIZE(InData%vt_tot)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%vt_tot))-1 ) = PACK(InData%vt_tot,.TRUE.)
+      Re_Xferred   = Re_Xferred   + SIZE(InData%vt_tot)
+  END IF
+  IF ( .NOT. ALLOCATED(InData%vt_amb) ) THEN
+    IntKiBuf( Int_Xferred ) = 0
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    IntKiBuf( Int_Xferred ) = 1
+    Int_Xferred = Int_Xferred + 1
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%vt_amb,1)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%vt_amb,1)
+    Int_Xferred = Int_Xferred + 2
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%vt_amb,2)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%vt_amb,2)
+    Int_Xferred = Int_Xferred + 2
+
+      IF (SIZE(InData%vt_amb)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%vt_amb))-1 ) = PACK(InData%vt_amb,.TRUE.)
+      Re_Xferred   = Re_Xferred   + SIZE(InData%vt_amb)
+  END IF
+  IF ( .NOT. ALLOCATED(InData%vt_shr) ) THEN
+    IntKiBuf( Int_Xferred ) = 0
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    IntKiBuf( Int_Xferred ) = 1
+    Int_Xferred = Int_Xferred + 1
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%vt_shr,1)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%vt_shr,1)
+    Int_Xferred = Int_Xferred + 2
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%vt_shr,2)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%vt_shr,2)
+    Int_Xferred = Int_Xferred + 2
+
+      IF (SIZE(InData%vt_shr)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%vt_shr))-1 ) = PACK(InData%vt_shr,.TRUE.)
+      Re_Xferred   = Re_Xferred   + SIZE(InData%vt_shr)
   END IF
   IF ( .NOT. ALLOCATED(InData%a) ) THEN
     IntKiBuf( Int_Xferred ) = 0
@@ -2490,7 +2581,9 @@ ENDIF
   LOGICAL, ALLOCATABLE           :: mask3(:,:,:)
   LOGICAL, ALLOCATABLE           :: mask4(:,:,:,:)
   LOGICAL, ALLOCATABLE           :: mask5(:,:,:,:,:)
+  LOGICAL, ALLOCATABLE           :: mask6(:,:,:,:,:,:)
   INTEGER(IntKi)                 :: i1, i1_l, i1_u  !  bounds (upper/lower) for an array dimension 1
+  INTEGER(IntKi)                 :: i2, i2_l, i2_u  !  bounds (upper/lower) for an array dimension 2
   INTEGER(IntKi)                 :: ErrStat2
   CHARACTER(ErrMsgLen)           :: ErrMsg2
   CHARACTER(*), PARAMETER        :: RoutineName = 'WD_UnPackMisc'
@@ -2550,28 +2643,83 @@ ENDIF
       Re_Xferred   = Re_Xferred   + SIZE(OutData%dvtdr)
     DEALLOCATE(mask1)
   END IF
-  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! vt not allocated
+  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! vt_tot not allocated
     Int_Xferred = Int_Xferred + 1
   ELSE
     Int_Xferred = Int_Xferred + 1
     i1_l = IntKiBuf( Int_Xferred    )
     i1_u = IntKiBuf( Int_Xferred + 1)
     Int_Xferred = Int_Xferred + 2
-    IF (ALLOCATED(OutData%vt)) DEALLOCATE(OutData%vt)
-    ALLOCATE(OutData%vt(i1_l:i1_u),STAT=ErrStat2)
+    i2_l = IntKiBuf( Int_Xferred    )
+    i2_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    IF (ALLOCATED(OutData%vt_tot)) DEALLOCATE(OutData%vt_tot)
+    ALLOCATE(OutData%vt_tot(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
     IF (ErrStat2 /= 0) THEN 
-       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%vt.', ErrStat, ErrMsg,RoutineName)
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%vt_tot.', ErrStat, ErrMsg,RoutineName)
        RETURN
     END IF
-    ALLOCATE(mask1(i1_l:i1_u),STAT=ErrStat2)
+    ALLOCATE(mask2(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
     IF (ErrStat2 /= 0) THEN 
-       CALL SetErrStat(ErrID_Fatal, 'Error allocating mask1.', ErrStat, ErrMsg,RoutineName)
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating mask2.', ErrStat, ErrMsg,RoutineName)
        RETURN
     END IF
-    mask1 = .TRUE. 
-      IF (SIZE(OutData%vt)>0) OutData%vt = UNPACK(ReKiBuf( Re_Xferred:Re_Xferred+(SIZE(OutData%vt))-1 ), mask1, 0.0_ReKi )
-      Re_Xferred   = Re_Xferred   + SIZE(OutData%vt)
-    DEALLOCATE(mask1)
+    mask2 = .TRUE. 
+      IF (SIZE(OutData%vt_tot)>0) OutData%vt_tot = UNPACK(ReKiBuf( Re_Xferred:Re_Xferred+(SIZE(OutData%vt_tot))-1 ), mask2, 0.0_ReKi )
+      Re_Xferred   = Re_Xferred   + SIZE(OutData%vt_tot)
+    DEALLOCATE(mask2)
+  END IF
+  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! vt_amb not allocated
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    Int_Xferred = Int_Xferred + 1
+    i1_l = IntKiBuf( Int_Xferred    )
+    i1_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    i2_l = IntKiBuf( Int_Xferred    )
+    i2_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    IF (ALLOCATED(OutData%vt_amb)) DEALLOCATE(OutData%vt_amb)
+    ALLOCATE(OutData%vt_amb(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%vt_amb.', ErrStat, ErrMsg,RoutineName)
+       RETURN
+    END IF
+    ALLOCATE(mask2(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating mask2.', ErrStat, ErrMsg,RoutineName)
+       RETURN
+    END IF
+    mask2 = .TRUE. 
+      IF (SIZE(OutData%vt_amb)>0) OutData%vt_amb = UNPACK(ReKiBuf( Re_Xferred:Re_Xferred+(SIZE(OutData%vt_amb))-1 ), mask2, 0.0_ReKi )
+      Re_Xferred   = Re_Xferred   + SIZE(OutData%vt_amb)
+    DEALLOCATE(mask2)
+  END IF
+  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! vt_shr not allocated
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    Int_Xferred = Int_Xferred + 1
+    i1_l = IntKiBuf( Int_Xferred    )
+    i1_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    i2_l = IntKiBuf( Int_Xferred    )
+    i2_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    IF (ALLOCATED(OutData%vt_shr)) DEALLOCATE(OutData%vt_shr)
+    ALLOCATE(OutData%vt_shr(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%vt_shr.', ErrStat, ErrMsg,RoutineName)
+       RETURN
+    END IF
+    ALLOCATE(mask2(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating mask2.', ErrStat, ErrMsg,RoutineName)
+       RETURN
+    END IF
+    mask2 = .TRUE. 
+      IF (SIZE(OutData%vt_shr)>0) OutData%vt_shr = UNPACK(ReKiBuf( Re_Xferred:Re_Xferred+(SIZE(OutData%vt_shr))-1 ), mask2, 0.0_ReKi )
+      Re_Xferred   = Re_Xferred   + SIZE(OutData%vt_shr)
+    DEALLOCATE(mask2)
   END IF
   IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! a not allocated
     Int_Xferred = Int_Xferred + 1
@@ -2705,7 +2853,7 @@ ENDIF
 ! 
    ErrStat = ErrID_None
    ErrMsg  = ""
-    DstParamData%DT = SrcParamData%DT
+    DstParamData%dt = SrcParamData%dt
     DstParamData%NumPlanes = SrcParamData%NumPlanes
     DstParamData%NumRadii = SrcParamData%NumRadii
     DstParamData%dr = SrcParamData%dr
@@ -2814,7 +2962,7 @@ ENDIF
   Re_BufSz  = 0
   Db_BufSz  = 0
   Int_BufSz  = 0
-      Db_BufSz   = Db_BufSz   + 1  ! DT
+      Db_BufSz   = Db_BufSz   + 1  ! dt
       Int_BufSz  = Int_BufSz  + 1  ! NumPlanes
       Int_BufSz  = Int_BufSz  + 1  ! NumRadii
       Re_BufSz   = Re_BufSz   + 1  ! dr
@@ -2894,7 +3042,7 @@ ENDIF
   Db_Xferred  = 1
   Int_Xferred = 1
 
-      DbKiBuf ( Db_Xferred:Db_Xferred+(1)-1 ) = InData%DT
+      DbKiBuf ( Db_Xferred:Db_Xferred+(1)-1 ) = InData%dt
       Db_Xferred   = Db_Xferred   + 1
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%NumPlanes
       Int_Xferred   = Int_Xferred   + 1
@@ -3019,6 +3167,7 @@ ENDIF
   LOGICAL, ALLOCATABLE           :: mask3(:,:,:)
   LOGICAL, ALLOCATABLE           :: mask4(:,:,:,:)
   LOGICAL, ALLOCATABLE           :: mask5(:,:,:,:,:)
+  LOGICAL, ALLOCATABLE           :: mask6(:,:,:,:,:,:)
   INTEGER(IntKi)                 :: i1, i1_l, i1_u  !  bounds (upper/lower) for an array dimension 1
   INTEGER(IntKi)                 :: ErrStat2
   CHARACTER(ErrMsgLen)           :: ErrMsg2
@@ -3033,7 +3182,7 @@ ENDIF
   Re_Xferred  = 1
   Db_Xferred  = 1
   Int_Xferred  = 1
-      OutData%DT = DbKiBuf( Db_Xferred ) 
+      OutData%dt = DbKiBuf( Db_Xferred ) 
       Db_Xferred   = Db_Xferred + 1
       OutData%NumPlanes = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1
@@ -3375,6 +3524,7 @@ ENDIF
   LOGICAL, ALLOCATABLE           :: mask3(:,:,:)
   LOGICAL, ALLOCATABLE           :: mask4(:,:,:,:)
   LOGICAL, ALLOCATABLE           :: mask5(:,:,:,:,:)
+  LOGICAL, ALLOCATABLE           :: mask6(:,:,:,:,:,:)
   INTEGER(IntKi)                 :: i1, i1_l, i1_u  !  bounds (upper/lower) for an array dimension 1
   INTEGER(IntKi)                 :: i2, i2_l, i2_u  !  bounds (upper/lower) for an array dimension 2
   INTEGER(IntKi)                 :: ErrStat2
@@ -3770,6 +3920,7 @@ ENDIF
   LOGICAL, ALLOCATABLE           :: mask3(:,:,:)
   LOGICAL, ALLOCATABLE           :: mask4(:,:,:,:)
   LOGICAL, ALLOCATABLE           :: mask5(:,:,:,:,:)
+  LOGICAL, ALLOCATABLE           :: mask6(:,:,:,:,:,:)
   INTEGER(IntKi)                 :: i1, i1_l, i1_u  !  bounds (upper/lower) for an array dimension 1
   INTEGER(IntKi)                 :: i2, i2_l, i2_u  !  bounds (upper/lower) for an array dimension 2
   INTEGER(IntKi)                 :: ErrStat2
@@ -3913,482 +4064,6 @@ ENDIF
     DEALLOCATE(mask1)
   END IF
  END SUBROUTINE WD_UnPackOutput
-
-
- SUBROUTINE WD_Input_ExtrapInterp(u, t, u_out, t_out, ErrStat, ErrMsg )
-!
-! This subroutine calculates a extrapolated (or interpolated) Input u_out at time t_out, from previous/future time
-! values of u (which has values associated with times in t).  Order of the interpolation is given by the size of u
-!
-!  expressions below based on either
-!
-!  f(t) = a
-!  f(t) = a + b * t, or
-!  f(t) = a + b * t + c * t**2
-!
-!  where a, b and c are determined as the solution to
-!  f(t1) = u1, f(t2) = u2, f(t3) = u3  (as appropriate)
-!
-!..................................................................................................................................
-
- TYPE(WD_InputType), INTENT(INOUT)  :: u(:) ! Input at t1 > t2 > t3
- REAL(DbKi),                 INTENT(IN   )  :: t(:)           ! Times associated with the Inputs
- TYPE(WD_InputType), INTENT(INOUT)  :: u_out ! Input at tin_out
- REAL(DbKi),                 INTENT(IN   )  :: t_out           ! time to be extrap/interp'd to
- INTEGER(IntKi),             INTENT(  OUT)  :: ErrStat         ! Error status of the operation
- CHARACTER(*),               INTENT(  OUT)  :: ErrMsg          ! Error message if ErrStat /= ErrID_None
-   ! local variables
- INTEGER(IntKi)                             :: order           ! order of polynomial fit (max 2)
- INTEGER(IntKi)                             :: ErrStat2        ! local errors
- CHARACTER(ErrMsgLen)                       :: ErrMsg2         ! local errors
- CHARACTER(*),    PARAMETER                 :: RoutineName = 'WD_Input_ExtrapInterp'
-    ! Initialize ErrStat
- ErrStat = ErrID_None
- ErrMsg  = ""
- if ( size(t) .ne. size(u)) then
-    CALL SetErrStat(ErrID_Fatal,'size(t) must equal size(u)',ErrStat,ErrMsg,RoutineName)
-    RETURN
- endif
- order = SIZE(u) - 1
- IF ( order .eq. 0 ) THEN
-   CALL WD_CopyInput(u(1), u_out, MESH_UPDATECOPY, ErrStat2, ErrMsg2 )
-     CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg,RoutineName)
- ELSE IF ( order .eq. 1 ) THEN
-   CALL WD_Input_ExtrapInterp1(u(1), u(2), t, u_out, t_out, ErrStat2, ErrMsg2 )
-     CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg,RoutineName)
- ELSE IF ( order .eq. 2 ) THEN
-   CALL WD_Input_ExtrapInterp2(u(1), u(2), u(3), t, u_out, t_out, ErrStat2, ErrMsg2 )
-     CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg,RoutineName)
- ELSE 
-   CALL SetErrStat(ErrID_Fatal,'size(u) must be less than 4 (order must be less than 3).',ErrStat,ErrMsg,RoutineName)
-   RETURN
- ENDIF 
- END SUBROUTINE WD_Input_ExtrapInterp
-
-
- SUBROUTINE WD_Input_ExtrapInterp1(u1, u2, tin, u_out, tin_out, ErrStat, ErrMsg )
-!
-! This subroutine calculates a extrapolated (or interpolated) Input u_out at time t_out, from previous/future time
-! values of u (which has values associated with times in t).  Order of the interpolation is 1.
-!
-!  f(t) = a + b * t, or
-!
-!  where a and b are determined as the solution to
-!  f(t1) = u1, f(t2) = u2
-!
-!..................................................................................................................................
-
- TYPE(WD_InputType), INTENT(INOUT)  :: u1    ! Input at t1 > t2
- TYPE(WD_InputType), INTENT(INOUT)  :: u2    ! Input at t2 
- REAL(DbKi),         INTENT(IN   )          :: tin(2)   ! Times associated with the Inputs
- TYPE(WD_InputType), INTENT(INOUT)  :: u_out ! Input at tin_out
- REAL(DbKi),         INTENT(IN   )          :: tin_out  ! time to be extrap/interp'd to
- INTEGER(IntKi),     INTENT(  OUT)          :: ErrStat  ! Error status of the operation
- CHARACTER(*),       INTENT(  OUT)          :: ErrMsg   ! Error message if ErrStat /= ErrID_None
-   ! local variables
- REAL(DbKi)                                 :: t(2)     ! Times associated with the Inputs
- REAL(DbKi)                                 :: t_out    ! Time to which to be extrap/interpd
- CHARACTER(*),                    PARAMETER :: RoutineName = 'WD_Input_ExtrapInterp1'
- REAL(DbKi)                                 :: b0       ! temporary for extrapolation/interpolation
- REAL(DbKi)                                 :: c0       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:)        :: b1       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:)        :: c1       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:,:)      :: b2       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:,:)      :: c2       ! temporary for extrapolation/interpolation
- INTEGER(IntKi)                             :: ErrStat2 ! local errors
- CHARACTER(ErrMsgLen)                       :: ErrMsg2  ! local errors
-    ! Initialize ErrStat
- ErrStat = ErrID_None
- ErrMsg  = ""
-    ! we'll subtract a constant from the times to resolve some 
-    ! numerical issues when t gets large (and to simplify the equations)
- t = tin - tin(1)
- t_out = tin_out - tin(1)
-
-   IF ( EqualRealNos( t(1), t(2) ) ) THEN
-     CALL SetErrStat(ErrID_Fatal, 't(1) must not equal t(2) to avoid a division-by-zero error.', ErrStat, ErrMsg,RoutineName)
-     RETURN
-   END IF
-  ALLOCATE(b1(SIZE(u_out%xhat_disk,1)))
-  ALLOCATE(c1(SIZE(u_out%xhat_disk,1)))
-  b1 = -(u1%xhat_disk - u2%xhat_disk)/t(2)
-  u_out%xhat_disk = u1%xhat_disk + b1 * t_out
-  DEALLOCATE(b1)
-  DEALLOCATE(c1)
-  ALLOCATE(b1(SIZE(u_out%p_hub,1)))
-  ALLOCATE(c1(SIZE(u_out%p_hub,1)))
-  b1 = -(u1%p_hub - u2%p_hub)/t(2)
-  u_out%p_hub = u1%p_hub + b1 * t_out
-  DEALLOCATE(b1)
-  DEALLOCATE(c1)
-IF (ALLOCATED(u_out%V_plane) .AND. ALLOCATED(u1%V_plane)) THEN
-  ALLOCATE(b2(SIZE(u_out%V_plane,1),SIZE(u_out%V_plane,2) ))
-  ALLOCATE(c2(SIZE(u_out%V_plane,1),SIZE(u_out%V_plane,2) ))
-  b2 = -(u1%V_plane - u2%V_plane)/t(2)
-  u_out%V_plane = u1%V_plane + b2 * t_out
-  DEALLOCATE(b2)
-  DEALLOCATE(c2)
-END IF ! check if allocated
-  b0 = -(u1%Vx_wind_disk - u2%Vx_wind_disk)/t(2)
-  u_out%Vx_wind_disk = u1%Vx_wind_disk + b0 * t_out
-  b0 = -(u1%TI_amb - u2%TI_amb)/t(2)
-  u_out%TI_amb = u1%TI_amb + b0 * t_out
-  b0 = -(u1%D_rotor - u2%D_rotor)/t(2)
-  u_out%D_rotor = u1%D_rotor + b0 * t_out
-  b0 = -(u1%Vx_rel_disk - u2%Vx_rel_disk)/t(2)
-  u_out%Vx_rel_disk = u1%Vx_rel_disk + b0 * t_out
-IF (ALLOCATED(u_out%Ct_azavg) .AND. ALLOCATED(u1%Ct_azavg)) THEN
-  ALLOCATE(b1(SIZE(u_out%Ct_azavg,1)))
-  ALLOCATE(c1(SIZE(u_out%Ct_azavg,1)))
-  b1 = -(u1%Ct_azavg - u2%Ct_azavg)/t(2)
-  u_out%Ct_azavg = u1%Ct_azavg + b1 * t_out
-  DEALLOCATE(b1)
-  DEALLOCATE(c1)
-END IF ! check if allocated
-  b0 = -(u1%YawErr - u2%YawErr)/t(2)
-  u_out%YawErr = u1%YawErr + b0 * t_out
- END SUBROUTINE WD_Input_ExtrapInterp1
-
-
- SUBROUTINE WD_Input_ExtrapInterp2(u1, u2, u3, tin, u_out, tin_out, ErrStat, ErrMsg )
-!
-! This subroutine calculates a extrapolated (or interpolated) Input u_out at time t_out, from previous/future time
-! values of u (which has values associated with times in t).  Order of the interpolation is 2.
-!
-!  expressions below based on either
-!
-!  f(t) = a + b * t + c * t**2
-!
-!  where a, b and c are determined as the solution to
-!  f(t1) = u1, f(t2) = u2, f(t3) = u3
-!
-!..................................................................................................................................
-
- TYPE(WD_InputType), INTENT(INOUT)  :: u1      ! Input at t1 > t2 > t3
- TYPE(WD_InputType), INTENT(INOUT)  :: u2      ! Input at t2 > t3
- TYPE(WD_InputType), INTENT(INOUT)  :: u3      ! Input at t3
- REAL(DbKi),                 INTENT(IN   )  :: tin(3)    ! Times associated with the Inputs
- TYPE(WD_InputType), INTENT(INOUT)  :: u_out     ! Input at tin_out
- REAL(DbKi),                 INTENT(IN   )  :: tin_out   ! time to be extrap/interp'd to
- INTEGER(IntKi),             INTENT(  OUT)  :: ErrStat   ! Error status of the operation
- CHARACTER(*),               INTENT(  OUT)  :: ErrMsg    ! Error message if ErrStat /= ErrID_None
-   ! local variables
- REAL(DbKi)                                 :: t(3)      ! Times associated with the Inputs
- REAL(DbKi)                                 :: t_out     ! Time to which to be extrap/interpd
- INTEGER(IntKi)                             :: order     ! order of polynomial fit (max 2)
- REAL(DbKi)                                 :: b0       ! temporary for extrapolation/interpolation
- REAL(DbKi)                                 :: c0       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:)        :: b1       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:)        :: c1       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:,:)      :: b2       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:,:)      :: c2       ! temporary for extrapolation/interpolation
- INTEGER(IntKi)                             :: ErrStat2 ! local errors
- CHARACTER(ErrMsgLen)                       :: ErrMsg2  ! local errors
- CHARACTER(*),            PARAMETER         :: RoutineName = 'WD_Input_ExtrapInterp2'
-    ! Initialize ErrStat
- ErrStat = ErrID_None
- ErrMsg  = ""
-    ! we'll subtract a constant from the times to resolve some 
-    ! numerical issues when t gets large (and to simplify the equations)
- t = tin - tin(1)
- t_out = tin_out - tin(1)
-
-   IF ( EqualRealNos( t(1), t(2) ) ) THEN
-     CALL SetErrStat(ErrID_Fatal, 't(1) must not equal t(2) to avoid a division-by-zero error.', ErrStat, ErrMsg,RoutineName)
-     RETURN
-   ELSE IF ( EqualRealNos( t(2), t(3) ) ) THEN
-     CALL SetErrStat(ErrID_Fatal, 't(2) must not equal t(3) to avoid a division-by-zero error.', ErrStat, ErrMsg,RoutineName)
-     RETURN
-   ELSE IF ( EqualRealNos( t(1), t(3) ) ) THEN
-     CALL SetErrStat(ErrID_Fatal, 't(1) must not equal t(3) to avoid a division-by-zero error.', ErrStat, ErrMsg,RoutineName)
-     RETURN
-   END IF
-  ALLOCATE(b1(SIZE(u_out%xhat_disk,1)))
-  ALLOCATE(c1(SIZE(u_out%xhat_disk,1)))
-  b1 = (t(3)**2*(u1%xhat_disk - u2%xhat_disk) + t(2)**2*(-u1%xhat_disk + u3%xhat_disk))/(t(2)*t(3)*(t(2) - t(3)))
-  c1 = ( (t(2)-t(3))*u1%xhat_disk + t(3)*u2%xhat_disk - t(2)*u3%xhat_disk ) / (t(2)*t(3)*(t(2) - t(3)))
-  u_out%xhat_disk = u1%xhat_disk + b1 * t_out + c1 * t_out**2
-  DEALLOCATE(b1)
-  DEALLOCATE(c1)
-  ALLOCATE(b1(SIZE(u_out%p_hub,1)))
-  ALLOCATE(c1(SIZE(u_out%p_hub,1)))
-  b1 = (t(3)**2*(u1%p_hub - u2%p_hub) + t(2)**2*(-u1%p_hub + u3%p_hub))/(t(2)*t(3)*(t(2) - t(3)))
-  c1 = ( (t(2)-t(3))*u1%p_hub + t(3)*u2%p_hub - t(2)*u3%p_hub ) / (t(2)*t(3)*(t(2) - t(3)))
-  u_out%p_hub = u1%p_hub + b1 * t_out + c1 * t_out**2
-  DEALLOCATE(b1)
-  DEALLOCATE(c1)
-IF (ALLOCATED(u_out%V_plane) .AND. ALLOCATED(u1%V_plane)) THEN
-  ALLOCATE(b2(SIZE(u_out%V_plane,1),SIZE(u_out%V_plane,2) ))
-  ALLOCATE(c2(SIZE(u_out%V_plane,1),SIZE(u_out%V_plane,2) ))
-  b2 = (t(3)**2*(u1%V_plane - u2%V_plane) + t(2)**2*(-u1%V_plane + u3%V_plane))/(t(2)*t(3)*(t(2) - t(3)))
-  c2 = ( (t(2)-t(3))*u1%V_plane + t(3)*u2%V_plane - t(2)*u3%V_plane ) / (t(2)*t(3)*(t(2) - t(3)))
-  u_out%V_plane = u1%V_plane + b2 * t_out + c2 * t_out**2
-  DEALLOCATE(b2)
-  DEALLOCATE(c2)
-END IF ! check if allocated
-  b0 = (t(3)**2*(u1%Vx_wind_disk - u2%Vx_wind_disk) + t(2)**2*(-u1%Vx_wind_disk + u3%Vx_wind_disk))/(t(2)*t(3)*(t(2) - t(3)))
-  c0 = ( (t(2)-t(3))*u1%Vx_wind_disk + t(3)*u2%Vx_wind_disk - t(2)*u3%Vx_wind_disk ) / (t(2)*t(3)*(t(2) - t(3)))
-  u_out%Vx_wind_disk = u1%Vx_wind_disk + b0 * t_out + c0 * t_out**2
-  b0 = (t(3)**2*(u1%TI_amb - u2%TI_amb) + t(2)**2*(-u1%TI_amb + u3%TI_amb))/(t(2)*t(3)*(t(2) - t(3)))
-  c0 = ( (t(2)-t(3))*u1%TI_amb + t(3)*u2%TI_amb - t(2)*u3%TI_amb ) / (t(2)*t(3)*(t(2) - t(3)))
-  u_out%TI_amb = u1%TI_amb + b0 * t_out + c0 * t_out**2
-  b0 = (t(3)**2*(u1%D_rotor - u2%D_rotor) + t(2)**2*(-u1%D_rotor + u3%D_rotor))/(t(2)*t(3)*(t(2) - t(3)))
-  c0 = ( (t(2)-t(3))*u1%D_rotor + t(3)*u2%D_rotor - t(2)*u3%D_rotor ) / (t(2)*t(3)*(t(2) - t(3)))
-  u_out%D_rotor = u1%D_rotor + b0 * t_out + c0 * t_out**2
-  b0 = (t(3)**2*(u1%Vx_rel_disk - u2%Vx_rel_disk) + t(2)**2*(-u1%Vx_rel_disk + u3%Vx_rel_disk))/(t(2)*t(3)*(t(2) - t(3)))
-  c0 = ( (t(2)-t(3))*u1%Vx_rel_disk + t(3)*u2%Vx_rel_disk - t(2)*u3%Vx_rel_disk ) / (t(2)*t(3)*(t(2) - t(3)))
-  u_out%Vx_rel_disk = u1%Vx_rel_disk + b0 * t_out + c0 * t_out**2
-IF (ALLOCATED(u_out%Ct_azavg) .AND. ALLOCATED(u1%Ct_azavg)) THEN
-  ALLOCATE(b1(SIZE(u_out%Ct_azavg,1)))
-  ALLOCATE(c1(SIZE(u_out%Ct_azavg,1)))
-  b1 = (t(3)**2*(u1%Ct_azavg - u2%Ct_azavg) + t(2)**2*(-u1%Ct_azavg + u3%Ct_azavg))/(t(2)*t(3)*(t(2) - t(3)))
-  c1 = ( (t(2)-t(3))*u1%Ct_azavg + t(3)*u2%Ct_azavg - t(2)*u3%Ct_azavg ) / (t(2)*t(3)*(t(2) - t(3)))
-  u_out%Ct_azavg = u1%Ct_azavg + b1 * t_out + c1 * t_out**2
-  DEALLOCATE(b1)
-  DEALLOCATE(c1)
-END IF ! check if allocated
-  b0 = (t(3)**2*(u1%YawErr - u2%YawErr) + t(2)**2*(-u1%YawErr + u3%YawErr))/(t(2)*t(3)*(t(2) - t(3)))
-  c0 = ( (t(2)-t(3))*u1%YawErr + t(3)*u2%YawErr - t(2)*u3%YawErr ) / (t(2)*t(3)*(t(2) - t(3)))
-  u_out%YawErr = u1%YawErr + b0 * t_out + c0 * t_out**2
- END SUBROUTINE WD_Input_ExtrapInterp2
-
-
- SUBROUTINE WD_Output_ExtrapInterp(y, t, y_out, t_out, ErrStat, ErrMsg )
-!
-! This subroutine calculates a extrapolated (or interpolated) Output y_out at time t_out, from previous/future time
-! values of y (which has values associated with times in t).  Order of the interpolation is given by the size of y
-!
-!  expressions below based on either
-!
-!  f(t) = a
-!  f(t) = a + b * t, or
-!  f(t) = a + b * t + c * t**2
-!
-!  where a, b and c are determined as the solution to
-!  f(t1) = y1, f(t2) = y2, f(t3) = y3  (as appropriate)
-!
-!..................................................................................................................................
-
- TYPE(WD_OutputType), INTENT(INOUT)  :: y(:) ! Output at t1 > t2 > t3
- REAL(DbKi),                 INTENT(IN   )  :: t(:)           ! Times associated with the Outputs
- TYPE(WD_OutputType), INTENT(INOUT)  :: y_out ! Output at tin_out
- REAL(DbKi),                 INTENT(IN   )  :: t_out           ! time to be extrap/interp'd to
- INTEGER(IntKi),             INTENT(  OUT)  :: ErrStat         ! Error status of the operation
- CHARACTER(*),               INTENT(  OUT)  :: ErrMsg          ! Error message if ErrStat /= ErrID_None
-   ! local variables
- INTEGER(IntKi)                             :: order           ! order of polynomial fit (max 2)
- INTEGER(IntKi)                             :: ErrStat2        ! local errors
- CHARACTER(ErrMsgLen)                       :: ErrMsg2         ! local errors
- CHARACTER(*),    PARAMETER                 :: RoutineName = 'WD_Output_ExtrapInterp'
-    ! Initialize ErrStat
- ErrStat = ErrID_None
- ErrMsg  = ""
- if ( size(t) .ne. size(y)) then
-    CALL SetErrStat(ErrID_Fatal,'size(t) must equal size(y)',ErrStat,ErrMsg,RoutineName)
-    RETURN
- endif
- order = SIZE(y) - 1
- IF ( order .eq. 0 ) THEN
-   CALL WD_CopyOutput(y(1), y_out, MESH_UPDATECOPY, ErrStat2, ErrMsg2 )
-     CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg,RoutineName)
- ELSE IF ( order .eq. 1 ) THEN
-   CALL WD_Output_ExtrapInterp1(y(1), y(2), t, y_out, t_out, ErrStat2, ErrMsg2 )
-     CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg,RoutineName)
- ELSE IF ( order .eq. 2 ) THEN
-   CALL WD_Output_ExtrapInterp2(y(1), y(2), y(3), t, y_out, t_out, ErrStat2, ErrMsg2 )
-     CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg,RoutineName)
- ELSE 
-   CALL SetErrStat(ErrID_Fatal,'size(y) must be less than 4 (order must be less than 3).',ErrStat,ErrMsg,RoutineName)
-   RETURN
- ENDIF 
- END SUBROUTINE WD_Output_ExtrapInterp
-
-
- SUBROUTINE WD_Output_ExtrapInterp1(y1, y2, tin, y_out, tin_out, ErrStat, ErrMsg )
-!
-! This subroutine calculates a extrapolated (or interpolated) Output y_out at time t_out, from previous/future time
-! values of y (which has values associated with times in t).  Order of the interpolation is 1.
-!
-!  f(t) = a + b * t, or
-!
-!  where a and b are determined as the solution to
-!  f(t1) = y1, f(t2) = y2
-!
-!..................................................................................................................................
-
- TYPE(WD_OutputType), INTENT(INOUT)  :: y1    ! Output at t1 > t2
- TYPE(WD_OutputType), INTENT(INOUT)  :: y2    ! Output at t2 
- REAL(DbKi),         INTENT(IN   )          :: tin(2)   ! Times associated with the Outputs
- TYPE(WD_OutputType), INTENT(INOUT)  :: y_out ! Output at tin_out
- REAL(DbKi),         INTENT(IN   )          :: tin_out  ! time to be extrap/interp'd to
- INTEGER(IntKi),     INTENT(  OUT)          :: ErrStat  ! Error status of the operation
- CHARACTER(*),       INTENT(  OUT)          :: ErrMsg   ! Error message if ErrStat /= ErrID_None
-   ! local variables
- REAL(DbKi)                                 :: t(2)     ! Times associated with the Outputs
- REAL(DbKi)                                 :: t_out    ! Time to which to be extrap/interpd
- CHARACTER(*),                    PARAMETER :: RoutineName = 'WD_Output_ExtrapInterp1'
- REAL(DbKi)                                 :: b0       ! temporary for extrapolation/interpolation
- REAL(DbKi)                                 :: c0       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:)        :: b1       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:)        :: c1       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:,:)      :: b2       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:,:)      :: c2       ! temporary for extrapolation/interpolation
- INTEGER(IntKi)                             :: ErrStat2 ! local errors
- CHARACTER(ErrMsgLen)                       :: ErrMsg2  ! local errors
-    ! Initialize ErrStat
- ErrStat = ErrID_None
- ErrMsg  = ""
-    ! we'll subtract a constant from the times to resolve some 
-    ! numerical issues when t gets large (and to simplify the equations)
- t = tin - tin(1)
- t_out = tin_out - tin(1)
-
-   IF ( EqualRealNos( t(1), t(2) ) ) THEN
-     CALL SetErrStat(ErrID_Fatal, 't(1) must not equal t(2) to avoid a division-by-zero error.', ErrStat, ErrMsg,RoutineName)
-     RETURN
-   END IF
-IF (ALLOCATED(y_out%xhat_plane) .AND. ALLOCATED(y1%xhat_plane)) THEN
-  ALLOCATE(b2(SIZE(y_out%xhat_plane,1),SIZE(y_out%xhat_plane,2) ))
-  ALLOCATE(c2(SIZE(y_out%xhat_plane,1),SIZE(y_out%xhat_plane,2) ))
-  b2 = -(y1%xhat_plane - y2%xhat_plane)/t(2)
-  y_out%xhat_plane = y1%xhat_plane + b2 * t_out
-  DEALLOCATE(b2)
-  DEALLOCATE(c2)
-END IF ! check if allocated
-IF (ALLOCATED(y_out%p_plane) .AND. ALLOCATED(y1%p_plane)) THEN
-  ALLOCATE(b2(SIZE(y_out%p_plane,1),SIZE(y_out%p_plane,2) ))
-  ALLOCATE(c2(SIZE(y_out%p_plane,1),SIZE(y_out%p_plane,2) ))
-  b2 = -(y1%p_plane - y2%p_plane)/t(2)
-  y_out%p_plane = y1%p_plane + b2 * t_out
-  DEALLOCATE(b2)
-  DEALLOCATE(c2)
-END IF ! check if allocated
-IF (ALLOCATED(y_out%Vx_wake) .AND. ALLOCATED(y1%Vx_wake)) THEN
-  ALLOCATE(b2(SIZE(y_out%Vx_wake,1),SIZE(y_out%Vx_wake,2) ))
-  ALLOCATE(c2(SIZE(y_out%Vx_wake,1),SIZE(y_out%Vx_wake,2) ))
-  b2 = -(y1%Vx_wake - y2%Vx_wake)/t(2)
-  y_out%Vx_wake = y1%Vx_wake + b2 * t_out
-  DEALLOCATE(b2)
-  DEALLOCATE(c2)
-END IF ! check if allocated
-IF (ALLOCATED(y_out%Vr_wake) .AND. ALLOCATED(y1%Vr_wake)) THEN
-  ALLOCATE(b2(SIZE(y_out%Vr_wake,1),SIZE(y_out%Vr_wake,2) ))
-  ALLOCATE(c2(SIZE(y_out%Vr_wake,1),SIZE(y_out%Vr_wake,2) ))
-  b2 = -(y1%Vr_wake - y2%Vr_wake)/t(2)
-  y_out%Vr_wake = y1%Vr_wake + b2 * t_out
-  DEALLOCATE(b2)
-  DEALLOCATE(c2)
-END IF ! check if allocated
-IF (ALLOCATED(y_out%D_wake) .AND. ALLOCATED(y1%D_wake)) THEN
-  ALLOCATE(b1(SIZE(y_out%D_wake,1)))
-  ALLOCATE(c1(SIZE(y_out%D_wake,1)))
-  b1 = -(y1%D_wake - y2%D_wake)/t(2)
-  y_out%D_wake = y1%D_wake + b1 * t_out
-  DEALLOCATE(b1)
-  DEALLOCATE(c1)
-END IF ! check if allocated
- END SUBROUTINE WD_Output_ExtrapInterp1
-
-
- SUBROUTINE WD_Output_ExtrapInterp2(y1, y2, y3, tin, y_out, tin_out, ErrStat, ErrMsg )
-!
-! This subroutine calculates a extrapolated (or interpolated) Output y_out at time t_out, from previous/future time
-! values of y (which has values associated with times in t).  Order of the interpolation is 2.
-!
-!  expressions below based on either
-!
-!  f(t) = a + b * t + c * t**2
-!
-!  where a, b and c are determined as the solution to
-!  f(t1) = y1, f(t2) = y2, f(t3) = y3
-!
-!..................................................................................................................................
-
- TYPE(WD_OutputType), INTENT(INOUT)  :: y1      ! Output at t1 > t2 > t3
- TYPE(WD_OutputType), INTENT(INOUT)  :: y2      ! Output at t2 > t3
- TYPE(WD_OutputType), INTENT(INOUT)  :: y3      ! Output at t3
- REAL(DbKi),                 INTENT(IN   )  :: tin(3)    ! Times associated with the Outputs
- TYPE(WD_OutputType), INTENT(INOUT)  :: y_out     ! Output at tin_out
- REAL(DbKi),                 INTENT(IN   )  :: tin_out   ! time to be extrap/interp'd to
- INTEGER(IntKi),             INTENT(  OUT)  :: ErrStat   ! Error status of the operation
- CHARACTER(*),               INTENT(  OUT)  :: ErrMsg    ! Error message if ErrStat /= ErrID_None
-   ! local variables
- REAL(DbKi)                                 :: t(3)      ! Times associated with the Outputs
- REAL(DbKi)                                 :: t_out     ! Time to which to be extrap/interpd
- INTEGER(IntKi)                             :: order     ! order of polynomial fit (max 2)
- REAL(DbKi)                                 :: b0       ! temporary for extrapolation/interpolation
- REAL(DbKi)                                 :: c0       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:)        :: b1       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:)        :: c1       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:,:)      :: b2       ! temporary for extrapolation/interpolation
- REAL(DbKi),ALLOCATABLE,DIMENSION(:,:)      :: c2       ! temporary for extrapolation/interpolation
- INTEGER(IntKi)                             :: ErrStat2 ! local errors
- CHARACTER(ErrMsgLen)                       :: ErrMsg2  ! local errors
- CHARACTER(*),            PARAMETER         :: RoutineName = 'WD_Output_ExtrapInterp2'
-    ! Initialize ErrStat
- ErrStat = ErrID_None
- ErrMsg  = ""
-    ! we'll subtract a constant from the times to resolve some 
-    ! numerical issues when t gets large (and to simplify the equations)
- t = tin - tin(1)
- t_out = tin_out - tin(1)
-
-   IF ( EqualRealNos( t(1), t(2) ) ) THEN
-     CALL SetErrStat(ErrID_Fatal, 't(1) must not equal t(2) to avoid a division-by-zero error.', ErrStat, ErrMsg,RoutineName)
-     RETURN
-   ELSE IF ( EqualRealNos( t(2), t(3) ) ) THEN
-     CALL SetErrStat(ErrID_Fatal, 't(2) must not equal t(3) to avoid a division-by-zero error.', ErrStat, ErrMsg,RoutineName)
-     RETURN
-   ELSE IF ( EqualRealNos( t(1), t(3) ) ) THEN
-     CALL SetErrStat(ErrID_Fatal, 't(1) must not equal t(3) to avoid a division-by-zero error.', ErrStat, ErrMsg,RoutineName)
-     RETURN
-   END IF
-IF (ALLOCATED(y_out%xhat_plane) .AND. ALLOCATED(y1%xhat_plane)) THEN
-  ALLOCATE(b2(SIZE(y_out%xhat_plane,1),SIZE(y_out%xhat_plane,2) ))
-  ALLOCATE(c2(SIZE(y_out%xhat_plane,1),SIZE(y_out%xhat_plane,2) ))
-  b2 = (t(3)**2*(y1%xhat_plane - y2%xhat_plane) + t(2)**2*(-y1%xhat_plane + y3%xhat_plane))/(t(2)*t(3)*(t(2) - t(3)))
-  c2 = ( (t(2)-t(3))*y1%xhat_plane + t(3)*y2%xhat_plane - t(2)*y3%xhat_plane ) / (t(2)*t(3)*(t(2) - t(3)))
-  y_out%xhat_plane = y1%xhat_plane + b2 * t_out + c2 * t_out**2
-  DEALLOCATE(b2)
-  DEALLOCATE(c2)
-END IF ! check if allocated
-IF (ALLOCATED(y_out%p_plane) .AND. ALLOCATED(y1%p_plane)) THEN
-  ALLOCATE(b2(SIZE(y_out%p_plane,1),SIZE(y_out%p_plane,2) ))
-  ALLOCATE(c2(SIZE(y_out%p_plane,1),SIZE(y_out%p_plane,2) ))
-  b2 = (t(3)**2*(y1%p_plane - y2%p_plane) + t(2)**2*(-y1%p_plane + y3%p_plane))/(t(2)*t(3)*(t(2) - t(3)))
-  c2 = ( (t(2)-t(3))*y1%p_plane + t(3)*y2%p_plane - t(2)*y3%p_plane ) / (t(2)*t(3)*(t(2) - t(3)))
-  y_out%p_plane = y1%p_plane + b2 * t_out + c2 * t_out**2
-  DEALLOCATE(b2)
-  DEALLOCATE(c2)
-END IF ! check if allocated
-IF (ALLOCATED(y_out%Vx_wake) .AND. ALLOCATED(y1%Vx_wake)) THEN
-  ALLOCATE(b2(SIZE(y_out%Vx_wake,1),SIZE(y_out%Vx_wake,2) ))
-  ALLOCATE(c2(SIZE(y_out%Vx_wake,1),SIZE(y_out%Vx_wake,2) ))
-  b2 = (t(3)**2*(y1%Vx_wake - y2%Vx_wake) + t(2)**2*(-y1%Vx_wake + y3%Vx_wake))/(t(2)*t(3)*(t(2) - t(3)))
-  c2 = ( (t(2)-t(3))*y1%Vx_wake + t(3)*y2%Vx_wake - t(2)*y3%Vx_wake ) / (t(2)*t(3)*(t(2) - t(3)))
-  y_out%Vx_wake = y1%Vx_wake + b2 * t_out + c2 * t_out**2
-  DEALLOCATE(b2)
-  DEALLOCATE(c2)
-END IF ! check if allocated
-IF (ALLOCATED(y_out%Vr_wake) .AND. ALLOCATED(y1%Vr_wake)) THEN
-  ALLOCATE(b2(SIZE(y_out%Vr_wake,1),SIZE(y_out%Vr_wake,2) ))
-  ALLOCATE(c2(SIZE(y_out%Vr_wake,1),SIZE(y_out%Vr_wake,2) ))
-  b2 = (t(3)**2*(y1%Vr_wake - y2%Vr_wake) + t(2)**2*(-y1%Vr_wake + y3%Vr_wake))/(t(2)*t(3)*(t(2) - t(3)))
-  c2 = ( (t(2)-t(3))*y1%Vr_wake + t(3)*y2%Vr_wake - t(2)*y3%Vr_wake ) / (t(2)*t(3)*(t(2) - t(3)))
-  y_out%Vr_wake = y1%Vr_wake + b2 * t_out + c2 * t_out**2
-  DEALLOCATE(b2)
-  DEALLOCATE(c2)
-END IF ! check if allocated
-IF (ALLOCATED(y_out%D_wake) .AND. ALLOCATED(y1%D_wake)) THEN
-  ALLOCATE(b1(SIZE(y_out%D_wake,1)))
-  ALLOCATE(c1(SIZE(y_out%D_wake,1)))
-  b1 = (t(3)**2*(y1%D_wake - y2%D_wake) + t(2)**2*(-y1%D_wake + y3%D_wake))/(t(2)*t(3)*(t(2) - t(3)))
-  c1 = ( (t(2)-t(3))*y1%D_wake + t(3)*y2%D_wake - t(2)*y3%D_wake ) / (t(2)*t(3)*(t(2) - t(3)))
-  y_out%D_wake = y1%D_wake + b1 * t_out + c1 * t_out**2
-  DEALLOCATE(b1)
-  DEALLOCATE(c1)
-END IF ! check if allocated
- END SUBROUTINE WD_Output_ExtrapInterp2
 
 END MODULE WakeDynamics_Types
 !ENDOFREGISTRYGENERATEDFILE

@@ -120,6 +120,8 @@ IMPLICIT NONE
     INTEGER(IntKi) , DIMENSION(:,:), ALLOCATABLE  :: Grid_low      !< XYZ components (global positions) of the spatial discretization of the low-resolution spatial domain [m]
     INTEGER(IntKi) , DIMENSION(:,:,:), ALLOCATABLE  :: Grid_high      !< XYZ components (global positions) of the spatial discretization of the high-resolution spatial domain for each turbine  [m]
     INTEGER(IntKi)  :: n_high_low      !< Number of high-resolution time steps per low [-]
+    INTEGER(IntKi)  :: n_wind_max      !< Maximun predicted number of low-resolution grid points found in any single wake plane volume [-]
+    INTEGER(IntKi)  :: n_wind_min      !< Minimum required number of low-resolution grid points found in any single wake plane volume [-]
     INTEGER(IntKi)  :: NumOuts      !< Number of parameters in the output list (number of outputs requested) [-]
     CHARACTER(1024)  :: OutFileRoot      !< The root name derived from the primary FAST.Farm input file [-]
     TYPE(OutParmType) , DIMENSION(:), ALLOCATABLE  :: OutParam      !< Names and units (and other characteristics) of all requested output parameters [-]
@@ -2753,6 +2755,8 @@ IF (ALLOCATED(SrcParamData%Grid_high)) THEN
     DstParamData%Grid_high = SrcParamData%Grid_high
 ENDIF
     DstParamData%n_high_low = SrcParamData%n_high_low
+    DstParamData%n_wind_max = SrcParamData%n_wind_max
+    DstParamData%n_wind_min = SrcParamData%n_wind_min
     DstParamData%NumOuts = SrcParamData%NumOuts
     DstParamData%OutFileRoot = SrcParamData%OutFileRoot
 IF (ALLOCATED(SrcParamData%OutParam)) THEN
@@ -2860,6 +2864,8 @@ ENDIF
       Int_BufSz  = Int_BufSz  + SIZE(InData%Grid_high)  ! Grid_high
   END IF
       Int_BufSz  = Int_BufSz  + 1  ! n_high_low
+      Int_BufSz  = Int_BufSz  + 1  ! n_wind_max
+      Int_BufSz  = Int_BufSz  + 1  ! n_wind_min
       Int_BufSz  = Int_BufSz  + 1  ! NumOuts
       Int_BufSz  = Int_BufSz  + 1*LEN(InData%OutFileRoot)  ! OutFileRoot
   Int_BufSz   = Int_BufSz   + 1     ! OutParam allocated yes/no
@@ -2984,6 +2990,10 @@ ENDIF
       Int_Xferred   = Int_Xferred   + SIZE(InData%Grid_high)
   END IF
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%n_high_low
+      Int_Xferred   = Int_Xferred   + 1
+      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%n_wind_max
+      Int_Xferred   = Int_Xferred   + 1
+      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%n_wind_min
       Int_Xferred   = Int_Xferred   + 1
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%NumOuts
       Int_Xferred   = Int_Xferred   + 1
@@ -3171,6 +3181,10 @@ ENDIF
     DEALLOCATE(mask3)
   END IF
       OutData%n_high_low = IntKiBuf( Int_Xferred ) 
+      Int_Xferred   = Int_Xferred + 1
+      OutData%n_wind_max = IntKiBuf( Int_Xferred ) 
+      Int_Xferred   = Int_Xferred + 1
+      OutData%n_wind_min = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1
       OutData%NumOuts = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1

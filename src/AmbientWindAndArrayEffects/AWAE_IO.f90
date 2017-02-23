@@ -36,6 +36,56 @@ MODULE AWAE_IO
    public :: ReadLowResWindFile
    
    contains
+
+!----------------------------------------------------------------------------------------------------------------------------------   
+!> This subroutine 
+!!
+subroutine ScanDir(dir, listingName)
+   character(*), intent(in ) :: dir
+   character(*), intent(in ) :: listingName
+#if _WIN32
+   call system('dir "'//trim(dir)//'" /B /A:-D-S-H > '//trim(listingName))
+#else
+   call system('ls '//trim(dir)//' > '//trim(listingName))
+#endif
+end subroutine
+   
+subroutine ReadLowResWindFileHeaders(p, errStat, errMsg)
+   type(AWAE_ParameterType),       intent(in   )  :: p            !< Parameters
+   integer(IntKi),                 intent(  out)  :: errStat      !< Error status of the operation
+   character(*),                   intent(  out)  :: errMsg       !< Error message if errStat /= ErrID_None
+   
+   real :: r
+   integer :: Un, i,reason,nFiles
+   character(LEN=100), dimension(:), allocatable :: fileNames
+
+   errStat = ErrID_None
+   errMsg  = ""
+
+   ! get the files
+   call ScanDir(trim(p%WindFileRoot)//'\low-res','dirContents.txt')
+   CALL GetNewUnit( Un, ErrStat, ErrMsg )
+   CALL OpenFOutFile ( Un, 'dirContents.txt', ErrStat, ErrMsg )
+
+   !how many
+   nFiles = 0
+   do
+      read(Un,FMT='(a)',iostat=reason) r
+      if (reason/=0) EXIT
+      nFiles = nFiles+1
+   end do
+  
+   allocate(fileNames(nFiles))
+   rewind(Un)
+   do i = 1,nFiles
+      read(Un,'(a)') fileNames(i)
+      
+   end do
+   close(Un)
+   
+!==============================================================================
+    
+end subroutine ReadLowResWindFileHeaders  
    
 !----------------------------------------------------------------------------------------------------------------------------------   
 !> This subroutine 
@@ -92,9 +142,8 @@ subroutine ReadHighResWindFile(nt, n_hl, t, p, Vamb_high, errStat, errMsg)
   
 end subroutine ReadHighResWindFile
 
-subroutine AWAE_IO_InitGridInfo(WindFileRoot, p, InitOut, errStat, errMsg)
+subroutine AWAE_IO_InitGridInfo(p, InitOut, errStat, errMsg)
 
-   character(1024),             intent(in   ) :: WindFileRoot   !< Root name for the wind files
    type(AWAE_ParameterType),    intent(inout) :: p              !< Parameters
    type(AWAE_InitOutputType),   intent(  out) :: InitOut        !< Output for initialization routine
    integer(IntKi),              intent(  out) :: errStat
@@ -104,7 +153,7 @@ subroutine AWAE_IO_InitGridInfo(WindFileRoot, p, InitOut, errStat, errMsg)
    integer(IntKi)                             :: errStat2      ! temporary error status of the operation
    character(ErrMsgLen)                       :: errMsg2       ! temporary error message 
    character(*), parameter                    :: RoutineName = 'AWAE_IO_InitGridInfo'
-   real(ReKi)                                 :: X0_low, Y0_low, Z0_low, dX_low, dY_low, dZ_low
+   real(ReKi)                                 :: X0_low, Y0_low, Z0_low, dX_low, dY_low, dZ_low, dt_low, dt_high
    real(ReKi)                                 :: X0_high, Y0_high, Z0_high, dX_high, dY_high, dZ_high
    integer(IntKi)                             :: nXYZ_low, nt, nx_low, ny_low, nz_low, nXYZ_high, nx_high, ny_high, nz_high
    errStat = ErrID_None
@@ -114,6 +163,7 @@ subroutine AWAE_IO_InitGridInfo(WindFileRoot, p, InitOut, errStat, errMsg)
 ! Start simulated read of low and high res ambient wind files 
 ! TODO: Replace this block with code which actually parses ambient wind data files
    
+   call ReadLowResWindFileHeaders(p, errStat, errMsg)
    
    X0_low = -75.0_ReKi
    Y0_low = -500.0_ReKi
@@ -122,7 +172,10 @@ subroutine AWAE_IO_InitGridInfo(WindFileRoot, p, InitOut, errStat, errMsg)
    dY_low = 10.0_ReKi
    dZ_low = 10.0_ReKi
    nXYZ_low = 0
+   dt_low = 1.0
    
+   p%n_wind_min = 100
+   p%n_wind_max = ceiling(30.0_ReKi*pi*(2.0_ReKi*p%r(p%NumRadii-1))**2*dt_low/(dX_low*dY_low*dZ_low))
    
       ! Parse a low res wind input file to gather the grid information
    p%nX_Low           = 151      ! 10 ! 

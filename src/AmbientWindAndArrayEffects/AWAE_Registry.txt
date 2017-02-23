@@ -94,6 +94,8 @@ typedef   ^ ParameterType  IntKi            nZ_high            -  - -   "Number 
 typedef   ^ ParameterType  IntKi            Grid_low           {:}{:}    - -   "XYZ components (global positions) of the spatial discretization of the low-resolution spatial domain" m
 typedef   ^ ParameterType  IntKi            Grid_high          {:}{:}{:} - -   "XYZ components (global positions) of the spatial discretization of the high-resolution spatial domain for each turbine " m
 typedef   ^ ParameterType  IntKi            n_high_low         -  - -   "Number of high-resolution time steps per low" -
+typedef   ^ ParameterType  IntKi            n_wind_max         -  - -   "Maximun predicted number of low-resolution grid points found in any single wake plane volume" -
+typedef   ^ ParameterType  IntKi            n_wind_min         -  - -   "Minimum required number of low-resolution grid points found in any single wake plane volume" -
 #                                         
 # parameters for output  
 typedef   ^ ParameterType  IntKi            NumOuts            -  - -   "Number of parameters in the output list (number of outputs requested)"      -

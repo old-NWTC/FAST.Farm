@@ -84,7 +84,9 @@ typedef   ^      OtherStateType               LOGICAL     firstPass          -  
 #   e.g. indices for searching in an array, large arrays that are local variables in any routine called multiple times, etc.
 typedef   ^         MiscVarType   ReKi  dvdr    {:}    - -   ""     
 typedef   ^         MiscVarType   ReKi  dvtdr   {:}    - -   ""     
-typedef   ^         MiscVarType   ReKi  vt      {:}    - -   ""     
+typedef   ^         MiscVarType   ReKi  vt_tot  {:}{:} - -   ""     
+typedef   ^         MiscVarType   ReKi  vt_amb  {:}{:} - -   ""     
+typedef   ^         MiscVarType   ReKi  vt_shr  {:}{:} - -   ""     
 typedef   ^         MiscVarType   ReKi  a       {:}    - -   ""     
 typedef   ^         MiscVarType   ReKi  b       {:}    - -   ""     
 typedef   ^         MiscVarType   ReKi  c       {:}    - -   ""     

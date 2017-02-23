@@ -78,6 +78,7 @@ subroutine LowResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
    real(ReKi)          :: Vr_term(3)
    real(ReKi)          :: Vx_term
    real(ReKi)          :: Vsum_low(3)
+   real(ReKi)          :: Vave_amb_low_norm
    integer(IntKi)      :: ILo
    character(*), parameter   :: RoutineName = 'LowResGridCalcOutput'   
    errStat = ErrID_None
@@ -96,10 +97,6 @@ subroutine LowResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
    
       ! Loop over the entire grid of low resolution ambient wind data to compute:
       !    1) the disturbed flow at each point and 2) the averaged disturbed velocity of each wake plane
-   
-   !$OMP PARALLEL SHARED(u%xhat_plane,p%Grid_Low,u%p_plane,p%numRadii, p%r,   CHUNK) PRIVATE(nXYZ_low, n_wake, xhatBar_plane, nt, np, x_end_plane, x_start_plane, r_vec_plane, r_tmp_plane )
-
-   !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
    
    do nz_low=0, p%nZ_low-1 
       do ny_low=0, p%nY_low-1
@@ -158,8 +155,8 @@ subroutine LowResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
                         m%N_wind(np,nt) = m%N_wind(np,nt) + 1
                         
                         ! TODO: Verify that m%N_wind(np,nt) <= MAX_1ST_DIM_SIZE of nx_wind
-                        if ( m%N_wind(np,nt) > MAX_WAKE_VOL_PTS ) then
-                           call SetErrStat( ErrID_Fatal, 'The wake plane volume contains more points than allowed by the parameter, MAX_WIND_VOL_PTS', errStat, errMsg, RoutineName )
+                        if ( m%N_wind(np,nt) > p%n_wind_max ) then
+                           call SetErrStat( ErrID_Fatal, 'The wake plane volume (plane='//trim(num2lstr(np))//',turbine='//trim(num2lstr(nt))//') contains more points than the maximum predicted points: 30*pi*DT(2*r*[Nr-1])**2/(dx*dy*dz)', errStat, errMsg, RoutineName )
                            return
                         end if
                         
@@ -198,21 +195,46 @@ subroutine LowResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
    end do       ! do nz_low=0, p%nZ_low-1
    
    do nt = 1,p%NumTurbines
-      ! TODO: This is modified in Rev 7 and the current code is for Rev 6. 13/Feb/2017
-      Vsum_low = 0.0_ReKi
+      if ( m%N_wind(0,nt) > 0 ) then
+         ! TODO: This is modified in Rev 7 and the current code is for Rev 6. 13/Feb/2017
+         Vsum_low = 0.0_ReKi
       
-      do nw=1,m%N_wind(0,nt)   
-         Vsum_low = Vsum_low + m%Vamb_Low( :, m%nx_wind(nw,0,nt), m%ny_wind(nw,0,nt), m%nz_wind(nw,0,nt) )
-      end do
-      y%Vx_wind_disk(nt) = dot_product( u%xhat_plane(:,0,nt), Vsum_low / m%N_wind(0,nt) )
-        
+         do nw=1,m%N_wind(0,nt)   
+            Vsum_low = Vsum_low + m%Vamb_Low(:, m%nx_wind(nw,0,nt), m%ny_wind(nw,0,nt), m%nz_wind(nw,0,nt))
+         end do
+         Vsum_low       = Vsum_low / m%N_wind(0,nt)  ! if N_wind gets large ( ~= 100,000 ) then this may not give enough precision in Vave_amb_low
+         Vave_amb_low_norm  = norm2(Vsum_low)
+         if ( EqualRealNos(Vave_amb_low_norm,0.0_ReKi) ) then    
+            call SetErrStat( ErrID_Fatal, 'The magnitude of the spatial-averaged ambient wind speed in the low-resolution domain associated with the wake volume at the rotor disk for turbine '//trim(num2lstr(nt))//' is zero.', errStat, errMsg, RoutineName )
+            return     
+         end if
+      
+         y%Vx_wind_disk(nt) = dot_product( u%xhat_plane(:,0,nt), Vsum_low )
+         y%TI_amb(nt)       = 0.0_ReKi
+         do nw=1,m%N_wind(np,nt)
+            y%TI_amb(nt) = y%TI_amb(nt) + norm2( m%Vamb_Low(:, m%nx_wind(nw,0,nt), m%ny_wind(nw,0,nt), m%nz_wind(nw,0,nt)) - Vsum_low )**2
+         end do
+         y%TI_amb(nt) = sqrt(y%TI_amb(nt)/(3.0*m%N_wind(0,nt)))/Vave_amb_low_norm
+      else
+         y%Vx_wind_disk(nt) = 0.0_ReKi
+         y%TI_amb(nt)       = 0.0_ReKi
+      end if
+      
       
       do np = 0, p%NumPlanes-2
-         Vsum_low = 0.0_ReKi
-         do nw=1,m%N_wind(np,nt)   
-            Vsum_low = Vsum_low + m%Vdist_low( :, m%nx_wind(nw,np,nt),m%ny_wind(nw,np,nt),m%nz_wind(nw,np,nt) )
-         end do
-         y%V_plane(:,np,nt) = Vsum_low /  m%N_wind(np,nt)
+         if ( (u%D_wake(np,nt) > 0.0_ReKi) .and.  (m%N_wind(np,nt) < p%n_wind_min) ) then
+            call SetErrStat( ErrID_Fatal, 'The number of points in the wake volume '//trim(num2lstr(np))//' for turbine '//trim(num2lstr(nt))//' is less than the minimum threshold, '//trim(num2lstr(p%n_wind_min))//'.', errStat, errMsg, RoutineName )
+            return     
+         else if ( m%N_wind(np,nt) > 0  ) then            
+            Vsum_low = 0.0_ReKi
+            do nw=1,m%N_wind(np,nt)   
+               Vsum_low = Vsum_low + m%Vdist_low( :, m%nx_wind(nw,np,nt),m%ny_wind(nw,np,nt),m%nz_wind(nw,np,nt) )
+            end do
+            y%V_plane(:,np,nt) = Vsum_low /  m%N_wind(np,nt)
+         else
+            y%V_plane(:,np,nt) = 0.0_ReKi
+         end if
+         
       end do
       
    end do
@@ -259,10 +281,7 @@ subroutine HighResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
       ! Loop over the entire grid of low resolution ambient wind data to compute:
       !    1) the disturbed flow at each point and 2) the averaged disturbed velocity of each wake plane
    
-   !$OMP PARALLEL SHARED(u%xhat_plane,p%Grid_high,u%p_plane,p%numRadii, p%r,   CHUNK) PRIVATE(nXYZ_high, n_wake, xhatBar_plane, nt, np, x_end_plane, x_start_plane, r_vec_plane, r_tmp_plane )
 
-   !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-   
    do nt = 1,p%NumTurbines
       nXYZ_high = 0
       do n_hl=0, p%n_high_low-1
@@ -364,6 +383,151 @@ subroutine HighResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
    
    
 end subroutine HighResGridCalcOutput
+
+subroutine HighResGridCalcOutput2(t, u, p, y, m, errStat, errMsg)
+   real(DbKi),                     intent(in   )  :: t           !< Current simulation time in seconds
+   type(AWAE_InputType),           intent(in   )  :: u           !< Inputs at Time t
+   type(AWAE_ParameterType),       intent(in   )  :: p           !< Parameters
+   type(AWAE_OutputType),          intent(inout)  :: y           !< Outputs computed at t (Input only so that mesh con-
+                                                               !!   nectivity information does not have to be recalculated)
+   type(AWAE_MiscVarType),         intent(inout)  :: m           !< Misc/optimization variables
+   integer(IntKi),                 intent(  out)  :: errStat     !< Error status of the operation
+   character(*),                   intent(  out)  :: errMsg      !< Error message if errStat /= ErrID_None
+   
+   integer(IntKi)      :: nx, ny, nz, nt, nt2, np, nw, nx_high, ny_high, nz_high, n_hl !< loop counters
+   integer(IntKi)      :: nXYZ_high, n_wake       !< accumulating counters
+   real(ReKi)          :: xhatBar_plane(3)       !< 
+   real(ReKi)          :: tmp_xhatBar_plane
+   real(ReKi)          :: x_end_plane
+   real(ReKi)          :: x_start_plane
+   real(ReKi)          :: r_vec_plane(3)
+   real(ReKi)          :: r_tmp_plane
+   real(ReKi)          :: Vx_wake_tmp
+   real(ReKi)          :: Vr_wake_tmp(3)
+   real(ReKi)          :: Vr_term(3)
+   real(ReKi)          :: Vx_term
+   real(ReKi)          :: Vsum_low(3)
+   integer(IntKi)      :: ILo
+   character(*), parameter   :: RoutineName = 'HighResGridCalcOutput'
+   errStat = ErrID_None
+   errMsg  = ""
+
+   
+   
+            
+   
+   
+      ! Loop over the entire grid of low resolution ambient wind data to compute:
+      !    1) the disturbed flow at each point and 2) the averaged disturbed velocity of each wake plane
+   
+   
+   
+   do nt = 1,p%NumTurbines
+     ! nXYZ_high = 0
+      do n_hl=0, p%n_high_low-1
+            ! read from file the ambient flow for the current time step
+         call ReadHighResWindFile(nt, n_hl, t, p, m%Vamb_high, errStat, errMsg)
+            if ( errStat > AbortErrLev ) then
+               return
+            end if
+            
+            ! set the disturbed flow equal to the ambient flow for this time step
+         y%Vdist_high(:,:,:,:,n_hl,nt) = m%Vamb_high(:,:,:,:)
+      end do
+      
+      !$omp parallel &
+      !$omp& private(nz_high,ny_high,nx_high,nXYZ_high,n_wake,xhatBar_plane,nt2), &
+      !$omp& private(x_end_plane,np,ILo,x_start_plane,r_vec_plane,r_tmp_plane,tmp_xhatBar_plane), &
+      !$omp& private(Vx_wake_tmp,Vr_wake_tmp,Vr_term,Vx_term,n_hl ), & 
+      !$omp& shared(nt,p%nX_high,p%nY_high,p%nZ_high,u%xhat_plane,p%Grid_high,u%p_plane,m%rhat_plane), &
+      !$omp& shared(p%NumRadii,m%Vx_wake,m%Vr_wake,p%r,u%Vx_wake,u%Vr_wake,m%xhat_plane,y%Vdist_high), &
+      !$omp& collapse(3)
+      do nz_high=0, p%nZ_high-1 
+         do ny_high=0, p%nY_high-1
+            do nx_high=0, p%nX_high-1
+         
+               nXYZ_high =  nz_high*p%nX_high*p%nZ_high + ny_high*p%nX_high + nx_high !  nXYZ_high + 1
+               n_wake = 0
+               xhatBar_plane = 0.0_ReKi
+            
+               do nt2 = 1,p%NumTurbines
+                  if (nt /= nt2) then  
+                     
+                     x_end_plane = dot_product(u%xhat_plane(:,0,nt2), (p%Grid_high(:,nXYZ_high,nt2) - u%p_plane(:,0,nt2)) )
+               
+                     do np = 0, p%NumPlanes-2
+                  
+                           ! Reset interpolation counter
+                        ILo = 0
+                  
+                           ! Construct the endcaps of the current wake plane volume
+                        x_start_plane = x_end_plane
+                        x_end_plane = dot_product(u%xhat_plane(:,np+1,nt2), (p%Grid_high(:,nXYZ_high,nt2) - u%p_plane(:,np+1,nt2)) )
+                  
+                           ! test if the point is within the endcaps of the wake volume
+                        if ( ( x_start_plane >= 0.0_ReKi ) .and. ( x_end_plane < 0.0_ReKi ) ) then
+                           r_vec_plane = p%Grid_high(:,nXYZ_high,nt2) - u%p_plane(:,np,nt2) - x_start_plane*u%xhat_plane(:,np,nt2)
+                           r_tmp_plane = norm2( r_vec_plane )
+                     
+                              ! test if the point is within radial finite-difference grid
+                           if ( r_tmp_plane <= p%r(p%numRadii-1) ) then
+                        
+                              n_wake = n_wake + 1
+                             ! m%r_plane(n_wake) = r_tmp_plane   ! Why do we need this??  GJH
+                        
+                              if ( EqualRealNos(r_tmp_plane, 0.0_ReKi) ) then         
+                                 m%rhat_plane(:,n_wake) = 0.0_ReKi
+                              else
+                                 m%rhat_plane(:,n_wake) = ( r_vec_plane  ) / r_tmp_plane
+                              end if
+                                                                        
+                           ! given r_tmp_plane and Vx_wake at p%dr increments, find value of m%Vx_wake(@r_tmp_plane) using interpolation 
+                              m%Vx_wake(n_wake) = InterpBin( r_tmp_plane, p%r, u%Vx_wake(:,np,nt2), ILo, p%NumRadii ) !( XVal, XAry, YAry, ILo, AryLen )
+                              m%Vr_wake(n_wake) = InterpBin( r_tmp_plane, p%r, u%Vr_wake(:,np,nt2), ILo, p%NumRadii ) !( XVal, XAry, YAry, ILo, AryLen )
+                                              
+                              m%xhat_plane(:,n_wake) = u%xhat_plane(:,np,nt2)
+                              xhatBar_plane = xhatBar_plane + abs(m%Vx_wake(n_wake))*m%xhat_plane(:,n_wake)    
+                              
+                           end if  ! if the point is within radial finite-difference grid
+ 
+                           exit
+                        end if  ! if the point is within the endcaps of the wake volume                 
+                     end do     ! np = 0, p%NumPlanes-2
+                  end if    ! nt /= nt2          
+               end do        ! nt2 = 1,p%NumTurbines
+               if (n_wake > 0) then
+                  
+                  tmp_xhatBar_plane = norm2(xhatBar_plane)
+                  if ( EqualRealNos(tmp_xhatBar_plane, 0.0_ReKi) ) then
+                     xhatBar_plane = 0.0_ReKi
+                  else
+                     xhatBar_plane = xhatBar_plane / tmp_xhatBar_plane
+                  end if
+                  
+                  Vx_wake_tmp   = 0.0_ReKi
+                  Vr_wake_tmp   = 0.0_ReKi
+                  do nw = 1,n_wake 
+                     Vr_term     = m%Vx_wake(nw)*m%xhat_plane(:,nw) + m%Vr_wake(nw)*m%rhat_plane(:,nw)
+                     Vx_term     = dot_product( xhatBar_plane, Vr_term )
+                     Vx_wake_tmp = Vx_wake_tmp + Vx_term*Vx_term
+                     Vr_wake_tmp = Vr_wake_tmp + Vr_term
+                  end do
+                     ! [I - XX']V = V - (V dot X)X
+                  Vr_wake_tmp = Vr_wake_tmp - dot_product(Vr_wake_tmp,xhatBar_plane)*xhatBar_plane 
+                  do n_hl=0, p%n_high_low-1
+                     y%Vdist_high(:,nx_high,ny_high,nz_high,n_hl,nt) = y%Vdist_high(:,nx_high,ny_high,nz_high,n_hl,nt) + Vr_wake_tmp - xhatBar_plane*sqrt(Vx_wake_tmp)
+                  end do
+                     
+               end if  ! (n_wake > 0)
+            
+            end do ! nx_high=0, p%nX_high-1
+         end do    ! ny_high=0, p%nY_high-1
+   end do       ! nz_high=0, p%nZ_high-1
+   !$omp end parallel
+   end do          ! nt = 1,p%NumTurbines
+
+   
+end subroutine HighResGridCalcOutput2
 
 !----------------------------------------------------------------------------------------------------------------------------------   
 !> This subroutine sets the initialization output data structure, which contains data to be returned to the calling program (e.g.,
@@ -477,7 +641,7 @@ subroutine AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitO
    p%NumPlanes        = InitInp%InputFileData%NumPlanes   
    p%NumRadii         = InitInp%InputFileData%NumRadii    
    p%NumTurbines      = InitInp%InputFileData%NumTurbines 
-
+   p%WindFileRoot     = InitInp%InputFileData%WindFileRoot
    allocate( p%r(0:p%NumRadii-1),stat=errStat2)
       if (errStat2 /= 0) then
          call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for p%r.', errStat, errMsg, RoutineName )
@@ -492,7 +656,7 @@ subroutine AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitO
    
       ! Obtain the precursor grid information by parsing the necessary input files
       ! This will establish certain parameters as well as all of the initialization outputs
-   call AWAE_IO_InitGridInfo(InitInp%InputFileData%WindFileRoot, p, InitOut, errStat2, errMsg2)
+   call AWAE_IO_InitGridInfo(p, InitOut, errStat2, errMsg2)
       call SetErrStat ( errStat2, errMsg2, errStat, errMsg, RoutineName )
    if (errStat2 > AbortErrLev) then
          
@@ -865,7 +1029,7 @@ subroutine AWAE_TEST_SetGoodInitInpData(interval, InitInp)
 
       ! Based on NREL 5MW
     interval               = 1.0_DbKi
-    InitInp%InputFileData%WindFileRoot       = 'GoodData' 
+    InitInp%InputFileData%WindFileRoot       = 'C:\Dev\NWTC Github\FAST.Farm\data' 
     InitInp%InputFileData%NumTurbines    = 1
     InitInp%InputFileData%NumPlanes      = 500
     InitInp%InputFileData%NumRadii       = 40
@@ -931,14 +1095,42 @@ subroutine AWAE_TEST_CalcOutput(errStat, errMsg)
    integer(IntKi)  :: nt, nr, np
    real(DbKi) :: t
    
-      ! Set up the initialization inputs
-   call AWAE_TEST_SetGoodInitInpData(interval, InitInp)
+   ! This example creates turbine 1 at the global coordinate [0,0,0]
+   ! The data is hardcoded in: AWAE_IO_InitGridInfo() as follows:
+   ! X0_low = -750.0_ReKi
+   ! Y0_low = -500.0_ReKi
+   ! Z0_low = 0.0_ReKi
+   ! dX_low = 10.0_ReKi
+   ! dY_low = 10.0_ReKi
+   ! dZ_low = 10.0_ReKi
+   !    ! Parse a low res wind input file to gather the grid information
+   ! p%nX_Low           = 151    
+   ! p%nY_low           = 101    
+   ! p%nZ_low           = 51     
+   !    ! Grid runs from (X0_low, Y0_low, Z0_low) to (X0_low + (p%nX_Low-1)*dX_low, Y0_low+ (p%nY_Low-1)*dY_low, Z0_low+ (p%nZ_Low-1)*dZ_low)
+   !    ! (0,0,0) to (180,180,180) 
+   !    ! Parse a high res wind input file to gather the grid information
+   ! p%nX_high          = 16 
+   ! p%nY_high          = 16 
+   ! p%nZ_high          = 16 
+   ! The low resolution grid extends from [-750,-500,0] to [750,500,500]
+   ! The first turbine's grid is located at [
+   
+      ! Based on NREL 5MW
+    interval               = 1.0_DbKi
+    InitInp%InputFileData%WindFileRoot       = 'C:\Dev\NWTC Github\FAST.Farm\data' 
+    InitInp%InputFileData%NumTurbines    = 3
+    InitInp%InputFileData%NumPlanes      = 500
+    InitInp%InputFileData%NumRadii       = 40
+    InitInp%InputFileData%dr             = 5.0_ReKi
+    InitInp%InputFileData%tmax           = 300.0_DbKi
    
       ! Initialize the module
    call AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, interval, InitOut, errStat, errMsg )
    if (errStat > ErrID_None) then 
       return
    end if
+   
    
       ! Set up the inputs
    do nt = 1,p%NumTurbines
@@ -957,7 +1149,7 @@ subroutine AWAE_TEST_CalcOutput(errStat, errMsg)
    
    do nt = 1,p%NumTurbines
       do np = 0,p%NumPlanes-1
-         u%p_plane(1,np,nt)    = 0.0_ReKi + 8.0*np*interval
+         u%p_plane(1,np,nt)    = 0.0_ReKi + 8.0*np*interval ++ 250.0_ReKi*(nt-1)
          u%p_Plane(2,np,nt)    = 0.0_ReKi
          u%p_Plane(3,np,nt)    = 90.0_ReKi
          u%D_wake(np,nt)       = 126.0_ReKi
