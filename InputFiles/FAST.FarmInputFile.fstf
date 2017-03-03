@@ -10,7 +10,7 @@ FATAL              AbortLevel         Error level when simulation should abort (
 1                  NumTurbines        Number of wind turbines (-) [>=1]
 WT_X  WT_Y  WT_Z  WT_FASTInFile
 (m)   (m)   (m)   (string)
-0.0   0.0   0.0   "Test18.fst"
+  0.0     0.0     0.0   "..\subs\FAST\CertTest\Test18.fst" 
 --- WAKE DYNAMICS ---
 5.0                dr                 Radial increment of radial finite-difference grid (m) [>0.0]
 60                 NumRadii           Number of radii in the radial finite-difference grid (-) [>=2]
