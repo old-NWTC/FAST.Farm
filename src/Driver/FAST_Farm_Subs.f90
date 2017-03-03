@@ -28,6 +28,7 @@ MODULE FAST_Farm_Subs
    USE FAST_Farm_Types
    USE NWTC_Library
    USE WakeDynamics
+   USE AWAE
    USE FAST_Subs
    USE FASTWrapper
 
@@ -61,7 +62,10 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
    CHARACTER(*),             INTENT(IN   ) :: InputFile           !< A CHARACTER string containing the name of the primary FAST.Farm input file
    
    
-   ! local variables      
+   ! local variables 
+   type(AWAE_InitInputType)                :: AWAE_InitInput
+   type(AWAE_InitOutputType)               :: AWAE_InitOutput
+   
    INTEGER(IntKi)                          :: ErrStat2   
    CHARACTER(ErrMsgLen)                    :: ErrMsg2
    TYPE(WD_InitInputType)                  :: WD_InitInput        ! init-input data for WakeDynamics module
@@ -168,6 +172,8 @@ CONTAINS
    SUBROUTINE Cleanup()
    
       call WD_DestroyInitInput(WD_InitInput, ErrStat2, ErrMsg2)
+      call AWAE_DestroyInitInput(AWAE_InitInput, ErrStat2, ErrMsg2)
+      call AWAE_DestroyInitOutput(AWAE_InitOutput, ErrStat2, ErrMsg2)
          
    END SUBROUTINE Cleanup
 

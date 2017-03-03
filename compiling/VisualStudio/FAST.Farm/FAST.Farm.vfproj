@@ -50,7 +50,20 @@
 		<File RelativePath="..\..\..\InputFiles\FAST.FarmInputFile.fstf"/>
 		<File RelativePath="..\RunRegistry.bat"/></Filter>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
-		<Filter Name="AmbientWind_ArrayEffects"/>
+		<Filter Name="AmbientWind_ArrayEffects">
+		<Filter Name="RegistryFiles">
+		<File RelativePath="..\..\..\src\AmbientWindAndArrayEffects\AWAE_Registry.txt">
+			<FileConfiguration Name="Debug|Win32">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat AWAE" Description="Running Registry for AWAE" Outputs="..\..\..\src\AmbientWindAndArrayEffects\AWAE_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat AWAE" Description="Running Registry for AWAE" Outputs="..\..\..\src\AmbientWindAndArrayEffects\AWAE_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Debug|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat AWAE" Description="Running Registry for AWAE" Outputs="..\..\..\src\AmbientWindAndArrayEffects\AWAE_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release|Win32">
+				<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat AWAE" Description="Running Registry for AWAE" Outputs="..\..\..\src\AmbientWindAndArrayEffects\AWAE_Types.f90"/></FileConfiguration></File>
+		<File RelativePath="..\..\..\src\AmbientWindAndArrayEffects\AWAE_Types.f90"/></Filter>
+		<File RelativePath="..\..\..\src\AmbientWindAndArrayEffects\AWAE.f90"/>
+		<File RelativePath="..\..\..\src\AmbientWindAndArrayEffects\AWAE_IO.f90"/></Filter>
 		<Filter Name="Driver">
 		<Filter Name="RegistryFiles">
 		<File RelativePath="..\..\..\src\Driver\FAST_Farm_Registry.txt">

@@ -25,14 +25,12 @@ REM Note that Root_Loc is relative to the projects that **use** this batch file.
 REM reflect one directory lower than the location of this batch file.
 SET Root_Loc=..\..\..
 
-REM SET REGISTRY=%Root_Loc%\bin\Registry.exe
 SET Farm_Loc=%Root_Loc%\src
 
 SET Driver_Loc=%Farm_Loc%\Driver
 SET Wake_Loc=%Farm_Loc%\WakeDynamics
 SET Wrapper_Loc=%Farm_Loc%\FASTWrapper
 SET AWAE_Loc=%Farm_Loc%\AmbientWindAndArrayEffects
-REM SET NWTC_Lib_Loc=%Root_Loc%\subs\FAST\subs\NWTC_Library\source
 
 :: Get all of the paths we'd normally use in FAST, but make them relative to this %FAST_Loc% instead 
 :: note that Root_Loc and FAST_Loc get overwritten!
@@ -49,7 +47,7 @@ REM ---------------- RUN THE REGISTRY TO AUTO-GENERATE FILES -------------------
 REM ----------------------------------------------------------------------------
 :FarmDriver
 SET CURR_LOC=%Driver_Loc%
-%REGISTRY% "%CURR_LOC%\FAST_Farm_Registry.txt" -I %Driver_Loc% -I %Wake_Loc% -I %Wrapper_Loc% %ALL_FAST_INCLUDES% -noextrap -O "%CURR_LOC%"
+%REGISTRY% "%CURR_LOC%\FAST_Farm_Registry.txt" -I %Driver_Loc% -I %Wake_Loc% -I %AWAE_Loc% -I %Wrapper_Loc% %ALL_FAST_INCLUDES% -noextrap -O "%CURR_LOC%"
 GOTO checkError
 
 :FASTWrapper
