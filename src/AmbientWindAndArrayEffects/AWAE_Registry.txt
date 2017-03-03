@@ -66,7 +66,7 @@ typedef   ^ OtherStateType      ReKi     DummyOtherState  - - -  "Remove this va
 typedef   ^ MiscVarType    ReKi     Vamb_low     {:}{:}{:}{:} - -  "UVW components of ambient wind across the low-resolution domain throughout the farm" m/s
 typedef   ^ MiscVarType    ReKi     Vdist_low    {:}{:}{:}{:} - -  "UVW components of disturbed wind (ambient + deficits) across the low-resolution domain throughout the farm" m/s
 typedef   ^ MiscVarType    ReKi     Vamb_high    {:}{:}{:}{:} - -  "UVW components of ambient wind across each high-resolution domain around a turbine (one for each turbine) for each high-resolution time step within a low-resolution time step" m/s
-typedef   ^ MiscVarType    ReKi     N_wind       {:}{:}    - -  "Number of grid points contained in a given wake plane volume" -
+typedef   ^ MiscVarType    IntKi    N_wind       {:}{:}    - -  "Number of grid points contained in a given wake plane volume" -
 typedef   ^ MiscVarType    ReKi     xhat_plane   {:}{:} - -  "Orientations of wake planes, normal to wake planes, associated with a given point in the wind spatial domain Orientations of wake planes, normal to wake planes, associated with a given point in the wind spatial domain" -
 #typedef  ^ MiscVarType    ReKi     r_plane      {:}{:}       - - "" m
 typedef   ^ MiscVarType    ReKi     rhat_plane   {:}{:}    - -  "" -

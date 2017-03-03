@@ -125,7 +125,7 @@ subroutine LowResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
                      ! test if the point is within the endcaps of the wake volume
                   if ( ( x_start_plane >= 0.0_ReKi ) .and. ( x_end_plane < 0.0_ReKi ) ) then
                      r_vec_plane = p%Grid_Low(:,nXYZ_low) - u%p_plane(:,np,nt) - x_start_plane*u%xhat_plane(:,np,nt)
-                     r_tmp_plane = norm2( r_vec_plane )
+                     r_tmp_plane = TwoNorm( r_vec_plane )
                      
                         ! test if the point is within radial finite-difference grid
                      if ( r_tmp_plane <= p%r(p%numRadii-1) ) then
@@ -170,7 +170,7 @@ subroutine LowResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
                end do     ! do np = 0, p%NumPlanes-2
             end do        ! do nt = 1,p%NumTurbines
             if (n_wake > 0) then
-               tmp_xhatBar_plane = norm2(xhatBar_plane)
+               tmp_xhatBar_plane = TwoNorm(xhatBar_plane)
                if ( EqualRealNos(tmp_xhatBar_plane, 0.0_ReKi) ) then
                   xhatBar_plane = 0.0_ReKi
                else
@@ -203,7 +203,7 @@ subroutine LowResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
             Vsum_low = Vsum_low + m%Vamb_Low(:, m%nx_wind(nw,0,nt), m%ny_wind(nw,0,nt), m%nz_wind(nw,0,nt))
          end do
          Vsum_low       = Vsum_low / m%N_wind(0,nt)  ! if N_wind gets large ( ~= 100,000 ) then this may not give enough precision in Vave_amb_low
-         Vave_amb_low_norm  = norm2(Vsum_low)
+         Vave_amb_low_norm  = TwoNorm(Vsum_low)
          if ( EqualRealNos(Vave_amb_low_norm,0.0_ReKi) ) then    
             call SetErrStat( ErrID_Fatal, 'The magnitude of the spatial-averaged ambient wind speed in the low-resolution domain associated with the wake volume at the rotor disk for turbine '//trim(num2lstr(nt))//' is zero.', errStat, errMsg, RoutineName )
             return     
@@ -212,7 +212,7 @@ subroutine LowResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
          y%Vx_wind_disk(nt) = dot_product( u%xhat_plane(:,0,nt), Vsum_low )
          y%TI_amb(nt)       = 0.0_ReKi
          do nw=1,m%N_wind(np,nt)
-            y%TI_amb(nt) = y%TI_amb(nt) + norm2( m%Vamb_Low(:, m%nx_wind(nw,0,nt), m%ny_wind(nw,0,nt), m%nz_wind(nw,0,nt)) - Vsum_low )**2
+            y%TI_amb(nt) = y%TI_amb(nt) + TwoNorm( m%Vamb_Low(:, m%nx_wind(nw,0,nt), m%ny_wind(nw,0,nt), m%nz_wind(nw,0,nt)) - Vsum_low )**2
          end do
          y%TI_amb(nt) = sqrt(y%TI_amb(nt)/(3.0*m%N_wind(0,nt)))/Vave_amb_low_norm
       else
@@ -321,7 +321,7 @@ subroutine HighResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
                            ! test if the point is within the endcaps of the wake volume
                         if ( ( x_start_plane >= 0.0_ReKi ) .and. ( x_end_plane < 0.0_ReKi ) ) then
                            r_vec_plane = p%Grid_high(:,nXYZ_high,nt2) - u%p_plane(:,np,nt2) - x_start_plane*u%xhat_plane(:,np,nt2)
-                           r_tmp_plane = norm2( r_vec_plane )
+                           r_tmp_plane = TwoNorm( r_vec_plane )
                      
                               ! test if the point is within radial finite-difference grid
                            if ( r_tmp_plane <= p%r(p%numRadii-1) ) then
@@ -353,7 +353,7 @@ subroutine HighResGridCalcOutput(t, u, p, y, m, errStat, errMsg)
                end do        ! nt2 = 1,p%NumTurbines
                if (n_wake > 0) then
                   
-                  tmp_xhatBar_plane = norm2(xhatBar_plane)
+                  tmp_xhatBar_plane = TwoNorm(xhatBar_plane)
                   if ( EqualRealNos(tmp_xhatBar_plane, 0.0_ReKi) ) then
                      xhatBar_plane = 0.0_ReKi
                   else
@@ -467,7 +467,7 @@ subroutine HighResGridCalcOutput2(t, u, p, y, m, errStat, errMsg)
                            ! test if the point is within the endcaps of the wake volume
                         if ( ( x_start_plane >= 0.0_ReKi ) .and. ( x_end_plane < 0.0_ReKi ) ) then
                            r_vec_plane = p%Grid_high(:,nXYZ_high,nt2) - u%p_plane(:,np,nt2) - x_start_plane*u%xhat_plane(:,np,nt2)
-                           r_tmp_plane = norm2( r_vec_plane )
+                           r_tmp_plane = TwoNorm( r_vec_plane )
                      
                               ! test if the point is within radial finite-difference grid
                            if ( r_tmp_plane <= p%r(p%numRadii-1) ) then
@@ -497,7 +497,7 @@ subroutine HighResGridCalcOutput2(t, u, p, y, m, errStat, errMsg)
                end do        ! nt2 = 1,p%NumTurbines
                if (n_wake > 0) then
                   
-                  tmp_xhatBar_plane = norm2(xhatBar_plane)
+                  tmp_xhatBar_plane = TwoNorm(xhatBar_plane)
                   if ( EqualRealNos(tmp_xhatBar_plane, 0.0_ReKi) ) then
                      xhatBar_plane = 0.0_ReKi
                   else
@@ -1149,7 +1149,7 @@ subroutine AWAE_TEST_CalcOutput(errStat, errMsg)
    
    do nt = 1,p%NumTurbines
       do np = 0,p%NumPlanes-1
-         u%p_plane(1,np,nt)    = 0.0_ReKi + 8.0*np*interval ++ 250.0_ReKi*(nt-1)
+         u%p_plane(1,np,nt)    = 0.0_ReKi + 8.0*np*interval + 250.0_ReKi*(nt-1)
          u%p_Plane(2,np,nt)    = 0.0_ReKi
          u%p_Plane(3,np,nt)    = 90.0_ReKi
          u%D_wake(np,nt)       = 126.0_ReKi

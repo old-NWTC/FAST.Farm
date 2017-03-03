@@ -94,7 +94,7 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:,:,:,:), ALLOCATABLE  :: Vamb_low      !< UVW components of ambient wind across the low-resolution domain throughout the farm [m/s]
     REAL(ReKi) , DIMENSION(:,:,:,:), ALLOCATABLE  :: Vdist_low      !< UVW components of disturbed wind (ambient + deficits) across the low-resolution domain throughout the farm [m/s]
     REAL(ReKi) , DIMENSION(:,:,:,:), ALLOCATABLE  :: Vamb_high      !< UVW components of ambient wind across each high-resolution domain around a turbine (one for each turbine) for each high-resolution time step within a low-resolution time step [m/s]
-    REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: N_wind      !< Number of grid points contained in a given wake plane volume [-]
+    INTEGER(IntKi) , DIMENSION(:,:), ALLOCATABLE  :: N_wind      !< Number of grid points contained in a given wake plane volume [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: xhat_plane      !< Orientations of wake planes, normal to wake planes, associated with a given point in the wind spatial domain Orientations of wake planes, normal to wake planes, associated with a given point in the wind spatial domain [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: rhat_plane      !<  [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: Vx_wake      !<  [m/s]
@@ -2076,7 +2076,7 @@ ENDIF
   Int_BufSz   = Int_BufSz   + 1     ! N_wind allocated yes/no
   IF ( ALLOCATED(InData%N_wind) ) THEN
     Int_BufSz   = Int_BufSz   + 2*2  ! N_wind upper/lower bounds for each dimension
-      Re_BufSz   = Re_BufSz   + SIZE(InData%N_wind)  ! N_wind
+      Int_BufSz  = Int_BufSz  + SIZE(InData%N_wind)  ! N_wind
   END IF
   Int_BufSz   = Int_BufSz   + 1     ! xhat_plane allocated yes/no
   IF ( ALLOCATED(InData%xhat_plane) ) THEN
@@ -2219,8 +2219,8 @@ ENDIF
     IntKiBuf( Int_Xferred + 1) = UBOUND(InData%N_wind,2)
     Int_Xferred = Int_Xferred + 2
 
-      IF (SIZE(InData%N_wind)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%N_wind))-1 ) = PACK(InData%N_wind,.TRUE.)
-      Re_Xferred   = Re_Xferred   + SIZE(InData%N_wind)
+      IF (SIZE(InData%N_wind)>0) IntKiBuf ( Int_Xferred:Int_Xferred+(SIZE(InData%N_wind))-1 ) = PACK(InData%N_wind,.TRUE.)
+      Int_Xferred   = Int_Xferred   + SIZE(InData%N_wind)
   END IF
   IF ( .NOT. ALLOCATED(InData%xhat_plane) ) THEN
     IntKiBuf( Int_Xferred ) = 0
@@ -2494,8 +2494,8 @@ ENDIF
        RETURN
     END IF
     mask2 = .TRUE. 
-      IF (SIZE(OutData%N_wind)>0) OutData%N_wind = UNPACK(ReKiBuf( Re_Xferred:Re_Xferred+(SIZE(OutData%N_wind))-1 ), mask2, 0.0_ReKi )
-      Re_Xferred   = Re_Xferred   + SIZE(OutData%N_wind)
+      IF (SIZE(OutData%N_wind)>0) OutData%N_wind = UNPACK( IntKiBuf ( Int_Xferred:Int_Xferred+(SIZE(OutData%N_wind))-1 ), mask2, 0_IntKi )
+      Int_Xferred   = Int_Xferred   + SIZE(OutData%N_wind)
     DEALLOCATE(mask2)
   END IF
   IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! xhat_plane not allocated
