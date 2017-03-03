@@ -428,8 +428,13 @@ subroutine WD_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
       if (errStat2 /= 0) call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for m%dvdr.', errStat, errMsg, RoutineName )   
    allocate ( m%dvtdr(0:p%NumRadii-1 ) , STAT=ErrStat2 )
       if (errStat2 /= 0) call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for m%dvtdr.', errStat, errMsg, RoutineName )  
-   allocate (   m%vt(0:p%NumRadii-1 ) , STAT=ErrStat2 )
-      if (errStat2 /= 0) call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for m%vt.', errStat, errMsg, RoutineName )  
+   allocate (   m%vt_tot(0:p%NumRadii-1,0:p%NumPlanes-2 ) , STAT=ErrStat2 )
+      if (errStat2 /= 0) call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for m%vt_tot.', errStat, errMsg, RoutineName )  
+   allocate (   m%vt_amb(0:p%NumRadii-1,0:p%NumPlanes-2 ) , STAT=ErrStat2 )
+      if (errStat2 /= 0) call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for m%vt_amb.', errStat, errMsg, RoutineName )  
+   allocate (   m%vt_shr(0:p%NumRadii-1,0:p%NumPlanes-2 ) , STAT=ErrStat2 )
+      if (errStat2 /= 0) call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for m%vt_shr.', errStat, errMsg, RoutineName )  
+
    allocate (    m%a(0:p%NumRadii-1 ) , STAT=ErrStat2 )
       if (errStat2 /= 0) call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for m%a.', errStat, errMsg, RoutineName )  
    allocate (    m%b(0:p%NumRadii-1 ) , STAT=ErrStat2 )
@@ -627,8 +632,9 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
             m%dvdr(j) = - xd%Vx_wake(j-1,i-1)  / (2_ReKi*p%dr)
          end if
             ! All of the following states are at [n] 
-         m%vt(j) =  EddyTermA + EddyTermB * max( (lstar**2)*abs(m%dvdr(j)) , lstar*(xd%Vx_wind_disk_filt(i-1) + Vx_wake_min ) )
-                                                                     
+         m%vt_amb(j,i-1) = EddyTermA
+         m%vt_shr(j,i-1) = EddyTermB * max( (lstar**2)*abs(m%dvdr(j)) , lstar*(xd%Vx_wind_disk_filt(i-1) + Vx_wake_min ) )
+         m%vt_tot(j,i-1) = m%vt_amb(j,i-1) + m%vt_shr(j,i-1)                                                   
       end do
       
          ! All of the m%a,m%b,m%c,m%d vectors use states at time increment [n]
@@ -636,29 +642,29 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
       
       m%dvtdr(0) = 0.0_ReKi
       m%a(0)     = 0.0_ReKi
-      m%b(0)     = p%dr * ( xd%Vx_wind_disk_filt(i-1) + xd%Vx_wake(0,i-1)  ) / dx + m%vt(0)/p%dr
-      m%c(0)     = -m%vt(0)/p%dr
+      m%b(0)     = p%dr * ( xd%Vx_wind_disk_filt(i-1) + xd%Vx_wake(0,i-1)  ) / dx + m%vt_tot(0,i-1)/p%dr
+      m%c(0)     = -m%vt_tot(0,i-1)/p%dr
       m%c(p%NumRadii-1) = 0.0_ReKi
-      m%d(0)     = (p%dr * (xd%Vx_wind_disk_filt(i-1) + xd%Vx_wake(0,i-1)) / dx - m%vt(0)/p%dr  ) * xd%Vx_wake(0,i) + ( m%vt(0)/p%dr ) * xd%Vx_wake(1,i) 
+      m%d(0)     = (p%dr * (xd%Vx_wind_disk_filt(i-1) + xd%Vx_wake(0,i-1)) / dx - m%vt_tot(0,i-1)/p%dr  ) * xd%Vx_wake(0,i) + ( m%vt_tot(0,i-1)/p%dr ) * xd%Vx_wake(1,i) 
       
       do j = p%NumRadii-1, 1, -1 
          
          if (j <= p%NumRadii-2) then
-            m%dvtdr(j) = ( m%vt(j+1) - m%vt(j-1) ) / (2_ReKi*p%dr)
-            m%c(j) = real(j,ReKi)*xd%Vr_wake(j,i-1)/4.0_ReKi - (1_ReKi+2_ReKi*real(j,ReKi))*m%vt(j)/(4.0_ReKi*p%dr) - real(j,ReKi)*m%dvtdr(j)/4.0_ReKi
-            m%d(j) =    ( real(j,ReKi)*xd%Vr_wake(j,i-1)/4.0_ReKi - (1_ReKi-2_ReKi*real(j,ReKi))*m%vt(j)/(4.0_ReKi*p%dr) - real(j,ReKi)*m%dvtdr(j)/4.0_ReKi) * xd%Vx_wake(j-1,i) &
-                    + ( p%r(j)*( xd%Vx_wind_disk_filt(i-1) + xd%Vx_wake(j,i-1)  )/dx -  real(j,ReKi)*m%vt(j)/p%dr  ) * xd%Vx_wake(j,i) &
-                    + (-real(j,ReKi)*xd%Vr_wake(j,i-1)/4.0_ReKi + (1_ReKi+2_ReKi*real(j,ReKi))*m%vt(j)/(4.0_ReKi*p%dr) + real(j,ReKi)*m%dvtdr(j)/4.0_ReKi ) * xd%Vx_wake(j+1,i)
+            m%dvtdr(j) = ( m%vt_tot(j+1,i-1) - m%vt_tot(j-1,i-1) ) / (2_ReKi*p%dr)
+            m%c(j) = real(j,ReKi)*xd%Vr_wake(j,i-1)/4.0_ReKi - (1_ReKi+2_ReKi*real(j,ReKi))*m%vt_tot(j,i-1)/(4.0_ReKi*p%dr) - real(j,ReKi)*m%dvtdr(j)/4.0_ReKi
+            m%d(j) =    ( real(j,ReKi)*xd%Vr_wake(j,i-1)/4.0_ReKi - (1_ReKi-2_ReKi*real(j,ReKi))*m%vt_tot(j,i-1)/(4.0_ReKi*p%dr) - real(j,ReKi)*m%dvtdr(j)/4.0_ReKi) * xd%Vx_wake(j-1,i) &
+                    + ( p%r(j)*( xd%Vx_wind_disk_filt(i-1) + xd%Vx_wake(j,i-1)  )/dx -  real(j,ReKi)*m%vt_tot(j,i-1)/p%dr  ) * xd%Vx_wake(j,i) &
+                    + (-real(j,ReKi)*xd%Vr_wake(j,i-1)/4.0_ReKi + (1_ReKi+2_ReKi*real(j,ReKi))*m%vt_tot(j,i-1)/(4.0_ReKi*p%dr) + real(j,ReKi)*m%dvtdr(j)/4.0_ReKi ) * xd%Vx_wake(j+1,i)
              
          else
             m%dvtdr(j) = 0.0_ReKi
-            m%d(j) = ( real(j,ReKi)*xd%Vr_wake(j,i-1)/4.0_ReKi - (1_ReKi-2_ReKi*real(j,ReKi))*m%vt(j)/(4.0_ReKi*p%dr) - real(j,ReKi)*m%dvtdr(j)/4.0_ReKi) * xd%Vx_wake(j-1,i) &
-                    + ( p%r(j)*( xd%Vx_wind_disk_filt(i-1) + xd%Vx_wake(j,i-1)  )/dx -  real(j,ReKi)*m%vt(j)/p%dr  ) * xd%Vx_wake(j,i) 
+            m%d(j) = ( real(j,ReKi)*xd%Vr_wake(j,i-1)/4.0_ReKi - (1_ReKi-2_ReKi*real(j,ReKi))*m%vt_tot(j,i-1)/(4.0_ReKi*p%dr) - real(j,ReKi)*m%dvtdr(j)/4.0_ReKi) * xd%Vx_wake(j-1,i) &
+                    + ( p%r(j)*( xd%Vx_wind_disk_filt(i-1) + xd%Vx_wake(j,i-1)  )/dx -  real(j,ReKi)*m%vt_tot(j,i-1)/p%dr  ) * xd%Vx_wake(j,i) 
                     
          end if  
          
-         m%a(j) = -real(j,ReKi)*xd%Vr_wake(j,i-1)/4.0_ReKi + (1.0_ReKi-2.0_ReKi*real(j,ReKi))*m%vt(j)/(4.0_ReKi*p%dr) + real(j,ReKi)*m%dvtdr(j)/4.0_ReKi 
-         m%b(j) = p%r(j) * ( xd%Vx_wind_disk_filt(i-1) + xd%Vx_wake(j,i-1)  ) / dx + real(j,ReKi)*m%vt(j)/p%dr
+         m%a(j) = -real(j,ReKi)*xd%Vr_wake(j,i-1)/4.0_ReKi + (1.0_ReKi-2.0_ReKi*real(j,ReKi))*m%vt_tot(j,i-1)/(4.0_ReKi*p%dr) + real(j,ReKi)*m%dvtdr(j)/4.0_ReKi 
+         m%b(j) = p%r(j) * ( xd%Vx_wind_disk_filt(i-1) + xd%Vx_wake(j,i-1)  ) / dx + real(j,ReKi)*m%vt_tot(j,i-1)/p%dr
          
         
       end do ! j = 1,p%NumRadii-1
@@ -680,7 +686,7 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
             return
          end if
       
-      xd%p_plane        (:,i) = xd%p_plane(:,i-1) + V_planeDT + dy_HWkDfl
+      xd%p_plane        (:,i) = xd%p_plane(:,i-1) + V_planeDT + dy_HWkDfl    
       
       xd%Vx_wind_disk_filt(i) = xd%Vx_wind_disk_filt(i-1)
       xd%TI_amb_filt      (i) = xd%TI_amb_filt(i-1)
@@ -745,6 +751,20 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
    xd%Vx_rel_disk_filt     =  xd%Vx_rel_disk_filt*p%filtParam + u%Vx_rel_disk*(1.0_ReKi-p%filtParam)   
    
    
+! TODO: This is a new 3D wake plane crossing check and I'm not sure this is the most efficient implemenation.
+   do i = 1,p%NumPlanes-1
+      if ( xd%x_plane(i) - xd%x_plane(i-1) <= 0.0_ReKi ) then
+         call SetErrStat(ErrID_FATAL, 'In a 1D sense, wake plane '//trim(num2lstr(i-1))//' is further downstream than wake plane '//trim(num2lstr(i)), errStat, errMsg, RoutineName)   
+         call Cleanup()
+         return
+      end if
+      
+      if ( dot_product( xd%xhat_plane(:,i-1), ( xd%p_plane(:,i) -xd%p_plane(:,i-1) ) ) <= 0.0_ReKi ) then
+         call SetErrStat(ErrID_FATAL, 'In a 3D sense, wake plane '//trim(num2lstr(i-1))//' is further downstream than wake plane '//trim(num2lstr(i)), errStat, errMsg, RoutineName)   
+         call Cleanup()
+         return 
+      end if
+   end do
    
    
       !  filtered, azimuthally-averaged Ct values at each radial station
@@ -865,7 +885,14 @@ subroutine WD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg )
             ! NOTE: Since we are in firstPass=T, then xd%Vx_wake is already set to zero, so just pass that into WakeDiam
          y%D_wake(i)  =  WakeDiam( p%Mod_WakeDiam, p%NumRadii, p%dr, p%r, xd%Vx_wake(:,i), u%Vx_wind_disk, u%D_rotor, p%C_WakeDiam)
             
-         
+         if ( (y%p_plane     (3,i) - y%D_wake(i)/2.0_ReKi) < 0 ) then
+            call SetErrStat(ErrID_Warn, 'Wake boundary for wake plane '//trim(num2lstr(i))//' is below the ground.', errStat, errMsg, RoutineName)
+         end if
+         if ( y%p_plane     (3,i) < 0 ) then
+            call SetErrStat(ErrID_FATAL, 'Wake center for wake plane '//trim(num2lstr(i))//' is below the ground.' , errStat, errMsg, RoutineName)
+            return
+         end if
+      
          do j = 0, p%NumRadii - 1
             y%Vx_wake(j,i) = 0.0_ReKi
             y%Vr_wake(j,i) = 0.0_ReKi
@@ -884,10 +911,17 @@ subroutine WD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg )
       y%Vx_wake    = xd%Vx_wake
       y%Vr_wake    = xd%Vr_wake
       do i = 0, p%NumPlanes - 1
+         
          y%D_wake(i)  =  WakeDiam( p%Mod_WakeDiam, p%NumRadii, p%dr, p%r, xd%Vx_wake(:,i), xd%Vx_wind_disk_filt(i), xd%D_rotor_filt(i), p%C_WakeDiam)
+         if ( y%p_plane     (3,i) < 0.0_ReKi ) then
+            call SetErrStat(ErrID_FATAL, 'Wake center for wake plane '//trim(num2lstr(i))//' is below the ground.' , errStat, errMsg, RoutineName)
+            return
+         else if ( (y%p_plane     (3,i) - y%D_wake(i)/2.0_ReKi) < 0.0_ReKi ) then
+            call SetErrStat(ErrID_Warn, 'Wake boundary for wake plane '//trim(num2lstr(i))//' is below the ground.', errStat, errMsg, RoutineName)
+         end if
+         
          
       end do
-      
    end if
    
   ! call SetInputs(p, u, m, indx, errStat2, errMsg2)      

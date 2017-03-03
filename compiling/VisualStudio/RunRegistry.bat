@@ -25,17 +25,18 @@ REM Note that Root_Loc is relative to the projects that **use** this batch file.
 REM reflect one directory lower than the location of this batch file.
 SET Root_Loc=..\..\..
 
-
+REM SET REGISTRY=%Root_Loc%\bin\Registry.exe
 SET Farm_Loc=%Root_Loc%\src
 
 SET Driver_Loc=%Farm_Loc%\Driver
 SET Wake_Loc=%Farm_Loc%\WakeDynamics
 SET Wrapper_Loc=%Farm_Loc%\FASTWrapper
-SET AmbWind_Loc=
+SET AWAE_Loc=%Farm_Loc%\AmbientWindAndArrayEffects
+REM SET NWTC_Lib_Loc=%Root_Loc%\subs\FAST\subs\NWTC_Library\source
 
 :: Get all of the paths we'd normally use in FAST, but make them relative to this %FAST_Loc% instead 
 :: note that Root_Loc and FAST_Loc get overwritten!
-SET FAST_Loc=%Root_Loc%\subs\FAST\
+SET FAST_Loc=%Root_Loc%\subs\FAST
 SET SetFASTPaths=%FAST_Loc%\Compiling\VisualStudio\FASTlib\RunRegistry.bat
 call %SetFASTPaths% PathsOnly %FAST_Loc%
 
@@ -59,6 +60,11 @@ GOTO checkError
 :WakeDynamics
 SET CURR_LOC=%Wake_Loc%
 %REGISTRY% "%CURR_LOC%\WakeDynamics_Registry.txt" -I %NWTC_Lib_Loc% -noextrap -O "%CURR_LOC%"
+GOTO checkError
+
+:AWAE
+SET CURR_LOC=%AWAE_Loc%
+%REGISTRY% "%CURR_LOC%\AWAE_Registry.txt" -I %NWTC_Lib_Loc% -noextrap -O "%CURR_LOC%"
 GOTO checkError
 
 :WakeDynamics_Driver
