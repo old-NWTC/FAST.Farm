@@ -791,9 +791,7 @@ SUBROUTINE Farm_InitWD( farm, WD_InitInp, ErrStat, ErrMsg )
    INTEGER(IntKi)                          :: ErrStat2                        ! Temporary Error status
    CHARACTER(ErrMsgLen)                    :: ErrMsg2                         ! Temporary Error message
    CHARACTER(*),   PARAMETER               :: RoutineName = 'Farm_InitWD'
-   
-   
-   
+         
    ErrStat = ErrID_None
    ErrMsg = ""
    
@@ -802,9 +800,7 @@ SUBROUTINE Farm_InitWD( farm, WD_InitInp, ErrStat, ErrMsg )
       CALL SetErrStat( ErrID_Fatal, 'Could not allocate memory for Wake Dynamics data', ErrStat, ErrMsg, RoutineName )
       return
    end if
-   
-
-         
+            
       !.................
       ! Initialize each instance of WD
       !................                  
@@ -814,14 +810,14 @@ SUBROUTINE Farm_InitWD( farm, WD_InitInp, ErrStat, ErrMsg )
          ! initialization can be done in parallel (careful for FWrap_InitInp, though)
          !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++         
          
-         WD_InitInp%RootName    = trim(farm%p%OutFileRoot)//'.T'//trim(num2lstr(i_turb))
+         WD_InitInp%RootName    = trim(farm%p%OutFileRoot)//'.T'//num2lstr(i_turb)
          
             ! note that WD_Init has Interval as INTENT(IN) so, we don't need to worry about overwriting farm%p%dt here:
          call WD_Init( WD_InitInp, farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
                           farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%y, farm%WD(i_turb)%m, farm%p%dt, WD_InitOut, ErrStat2, ErrMsg2 )
          
          farm%WD(i_turb)%IsInitialized = .true.
-            CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+            CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
             if (ErrStat >= AbortErrLev) then
                call cleanup()
                return
@@ -857,7 +853,6 @@ SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
    CHARACTER(*),   PARAMETER               :: RoutineName = 'Farm_InitFAST'
    
    
-   
    ErrStat = ErrID_None
    ErrMsg = ""
    
@@ -866,9 +861,7 @@ SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
       CALL SetErrStat( ErrID_Fatal, 'Could not allocate memory for FAST Wrapper data', ErrStat, ErrMsg, RoutineName )
       return
    end if
-   
-
-         
+            
       !.................
       ! Initialize each instance of FAST
       !................            
@@ -895,14 +888,15 @@ SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
          FWrap_InitInp%FASTInFile    = farm%p%WT_FASTInFile(i_turb)
          FWrap_InitInp%p_ref_Turbine = farm%p%WT_Position(:,i_turb)
          FWrap_InitInp%TurbNum       = i_turb
-         FWrap_InitInp%RootName      = trim(farm%p%OutFileRoot)//'.T'//trim(num2lstr(i_turb))
+         FWrap_InitInp%RootName      = trim(farm%p%OutFileRoot)//'.T'//num2lstr(i_turb)
          
             ! note that FWrap_Init has Interval as INTENT(IN) so, we don't need to worry about overwriting farm%p%dt here:
          call FWrap_Init( FWrap_InitInp, farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
                           farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, farm%p%dt, FWrap_InitOut, ErrStat2, ErrMsg2 )
          
          farm%FWrap(i_turb)%IsInitialized = .true.
-            CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+         
+            CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
             if (ErrStat >= AbortErrLev) then
                call cleanup()
                return
@@ -940,7 +934,6 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
    INTEGER(IntKi)                          :: ErrStat2                        ! Temporary Error status
    CHARACTER(ErrMsgLen)                    :: ErrMsg2                         ! Temporary Error message
    CHARACTER(*),   PARAMETER               :: RoutineName = 'FARM_InitialCO'
-   
    
    
    ErrStat = ErrID_None
@@ -995,7 +988,7 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
       
       call FWrap_t0( farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
                      farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, ErrStat2, ErrMsg2 )         
-         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
                
    END DO
    if (ErrStat >= AbortErrLev) return
@@ -1024,7 +1017,7 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
       
       call WD_CalcOutput( 0.0_DbKi, farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
                      farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%y, farm%WD(i_turb)%m, ErrStat2, ErrMsg2 )         
-         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
                
    END DO
    
@@ -1084,7 +1077,7 @@ subroutine FARM_UpdateStates(t, n, farm, ErrStat, ErrMsg)
       
       call WD_UpdateStates( t, n, farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
                      farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%m, ErrStat2, ErrMsg2 )         
-         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
                
    END DO
    if (ErrStat >= AbortErrLev) return
@@ -1101,7 +1094,7 @@ subroutine FARM_UpdateStates(t, n, farm, ErrStat, ErrMsg)
       
       call FWrap_Increment( t, n, farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
                      farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, ErrStat2, ErrMsg2 )         
-         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
                
    END DO
    if (ErrStat >= AbortErrLev) return
@@ -1144,7 +1137,7 @@ subroutine FARM_CalcOutput(t, farm, ErrStat, ErrMsg)
       
       call WD_CalcOutput( t, farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
                      farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%y, farm%WD(i_turb)%m, ErrStat2, ErrMsg2 )         
-         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
                
    END DO
    
@@ -1222,7 +1215,7 @@ subroutine FARM_End(farm, ErrStat, ErrMsg)
       if (farm%WD(i_turb)%IsInitialized) then      
          call WD_End( farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
                       farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%y, farm%WD(i_turb)%m, ErrStat2, ErrMsg2 )         
-            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
       end if      
    END DO
    
@@ -1239,7 +1232,7 @@ subroutine FARM_End(farm, ErrStat, ErrMsg)
       if (farm%FWrap(i_turb)%IsInitialized) then
          CALL FWrap_End( farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
                          farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, ErrStat2, ErrMsg2 )
-         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
       end if
    END DO
       
