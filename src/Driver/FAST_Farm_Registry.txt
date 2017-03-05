@@ -17,16 +17,20 @@ usefrom WakeDynamics_Registry.txt
 usefrom AWAE_Registry.txt
 
 # ..... Parameters ................................................................................................................
-typedef  FAST_Farm/Farm  ParameterType         DbKi            DT              -    - - "Time step for cont. state integration & disc. state update" seconds
+typedef  FAST_Farm/Farm  ParameterType         DbKi            DT              -    - - "Time step for low-resolution wind data input files; will be used as the global FAST.Farm time step" seconds
+typedef  ^               ParameterType         DbKi            DT_high         -    - - "High-resolution time step"  seconds
 typedef  ^               ParameterType         DbKi            TMax            -    - - "Total run time" seconds
+typedef  ^               ParameterType         IntKi           n_high_low      -    - - "Number of high-resolution time steps per low-resolution time step"      -
 typedef  ^               ParameterType         IntKi           NumTurbines     -    - - "Number of turbines in the simulation" -
-typedef  ^               ParameterType         CHARACTER(1024) WindFileRoot    -    - - "Root name of wind data files from ABLSolver precursor" -
+typedef  ^               ParameterType         CHARACTER(1024) WindFilePath    -    - - "Path name of wind data files from ABLSolver precursor" -
 typedef  ^               ParameterType         ReKi            WT_Position   {:}{:} - - "X-Y-Z position of each wind turbine; index 1 = XYZ; index 2 = turbine number" meters
 typedef  ^               ParameterType         CHARACTER(1024) WT_FASTInFile {:}    - - "Name of input file for each turbine" -
 typedef  ^               ParameterType         CHARACTER(1024) FTitle          -    - - "The description line from the primary FAST.Farm input file" -
 typedef  ^               ParameterType         CHARACTER(1024) OutFileRoot     -    - - "The root name derived from the primary FAST.Farm input file" -
 typedef  ^               ParameterType         INTEGER         n_ChkptTime     -    - - "Number of time steps between writing checkpoint files"	-
 typedef  ^               ParameterType         DbKi            TStart          -    - - "Time to begin tabular output" s
+typedef  ^               ParameterType         IntKi           n_TMax_m1       -    - - "Number of the time step of TMax - dt (the end time of the simulation)" -
+# parameters for data output to files:
 typedef  ^               ParameterType         LOGICAL         WrBinOutFile    -    - - "Write a binary output file? (.outb)" -
 typedef  ^               ParameterType         LOGICAL         WrTxtOutFile    -    - - "Write a text (formatted) output file? (.out)" -
 typedef  ^               ParameterType         CHARACTER(1)    Delim           -    - - "Delimiter between columns of text output file (.out): space or tab" -
@@ -34,7 +38,19 @@ typedef  ^               ParameterType         CHARACTER(20)   OutFmt          -
 typedef  ^               ParameterType         CHARACTER(20)   OutFmt_t        -    - - "Format used for time channel in text tabular output; resulting field should be 10 characters" -
 typedef  ^               ParameterType         IntKi           FmtWidth        -    - - "width of the time OutFmt specifier" -
 typedef  ^               ParameterType         IntKi           TChanLen        -    - - "width of the time channel" -
-typedef  ^               ParameterType         IntKi           n_TMax_m1       -    - - "Number of the time step of TMax - dt (the end time of the simulation)" -
+typedef  ^               ParameterType         LOGICAL         WrDisWind       -    - - "Write disturbed wind data to <WindFilePath>/Low/Dis.t<n>.vtk etc.?" -
+typedef  ^               ParameterType         IntKi           NOutDisWindXY   -    - - "Number of XY planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXY.<n_out>.t<n>.vtk [0 to 99]" -
+typedef  ^               ParameterType         ReKi            OutDisWindZ    {:}   - - "Z coordinates of XY planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXY]" meters
+typedef  ^               ParameterType         IntKi           NOutDisWindYZ   -    - - "Number of YZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisYZ.<n_out>.t<n>.vtk [0 to 99]" -
+typedef  ^               ParameterType         ReKi            OutDisWindX    {:}   - - "X coordinates of YZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindYZ]" meters
+typedef  ^               ParameterType         IntKi           NOutDisWindXZ   -    - - "Number of XZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXZ.<n_out>.t<n>.vtk [0 to 99]" -
+typedef  ^               ParameterType         ReKi            OutDisWindY    {:}   - - "Y coordinates of XZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXZ]" meters
+typedef  ^               ParameterType         IntKi           NOutDist        -    - - "Number of downstream distances for wake output for an individual rotor [0 to 99]" -
+typedef  ^               ParameterType         ReKi            OutDist        {:}   - - "List of downstream distances for wake output for an individual rotor [1 to NOutDist]" meters
+typedef  ^               ParameterType         IntKi           NWindVel        -    - - "Number of points for wind output [0 to 99]" -
+typedef  ^               ParameterType         ReKi            WindVelX       {:}   - - "List of coordinates in the X direction for wind output [1 to NWindVel]" meters
+typedef  ^               ParameterType         ReKi            WindVelY       {:}   - - "List of coordinates in the Y direction for wind output [1 to NWindVel]" meters
+typedef  ^               ParameterType         ReKi            WindVelZ       {:}   - - "List of coordinates in the Z direction for wind output [1 to NWindVel]" meters
 
 # ..... FASTWrapper data .......................................................................................................
 typedef    ^    FASTWrapper_Data  FWrap_ContinuousStateType x             -   -         -   "Continuous states"
