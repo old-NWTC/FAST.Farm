@@ -1399,14 +1399,18 @@ subroutine FARM_End(farm, ErrStat, ErrMsg)
    ErrMsg = ""
    
    !.......................................................................................
-   ! end all modules (can be done in parallel) 
+   ! end all modules (1-4 can be done in parallel) 
    !.......................................................................................
    
       !--------------
-      ! 1. end AWAE
-   
-   ! call AWAE_End()
+      ! 1. end AWAE   
+   if (farm%AWAE%IsInitialized) then      
+      call AWAE_End( farm%AWAE%u, farm%AWAE%p, farm%AWAE%x, farm%AWAE%xd, farm%AWAE%z, &
+                     farm%AWAE%OtherSt, farm%AWAE%y, farm%AWAE%m, ErrStat2, ErrMsg2 )         
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   end if      
       
+   
       !--------------
       ! 2. end WakeDynamics
    if (allocated(farm%WD)) then
@@ -1427,8 +1431,7 @@ subroutine FARM_End(farm, ErrStat, ErrMsg)
    !CALL SC_End()
    
       !--------------
-      ! 4. End each instance of FAST (each instance of FAST can be done in parallel, too)
-   
+      ! 4. End each instance of FAST (each instance of FAST can be done in parallel, too)   
    if (allocated(farm%FWrap)) then
       
       DO i_turb = 1,farm%p%NumTurbines
