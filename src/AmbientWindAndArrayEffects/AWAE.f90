@@ -579,10 +579,7 @@ subroutine AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitO
    type(AWAE_OutputType),          intent(  out) :: y             !< Initial system outputs (outputs are not calculated;
                                                                   !!   only the output mesh is initialized)
    type(AWAE_MiscVarType),         intent(  out) :: m             !< Initial misc/optimization variables
-   real(DbKi),                     intent(inout) :: interval      !< Coupling interval in seconds: 
-                                                                  !!   Input is the suggested time from the glue code;
-                                                                  !!   Output is the actual coupling interval that will be used
-                                                                  !!   by the glue code.
+   real(DbKi),                     intent(in   ) :: interval      !< Low-resolution (FAST.Farm driver/glue code) time step, s 
    type(AWAE_InitOutputType),      intent(  out) :: InitOut       !< Output for initialization routine
    integer(IntKi),                 intent(  out) :: errStat       !< Error status of the operation
    character(*),                   intent(  out) :: errMsg        !< Error message if errStat /= ErrID_None
@@ -641,7 +638,9 @@ subroutine AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitO
    p%NumPlanes        = InitInp%InputFileData%NumPlanes   
    p%NumRadii         = InitInp%InputFileData%NumRadii    
    p%NumTurbines      = InitInp%InputFileData%NumTurbines 
-   p%WindFileRoot     = InitInp%InputFileData%WindFileRoot
+   p%WindFileRoot     = InitInp%InputFileData%WindFilePath
+   p%n_high_low       = InitInp%n_high_low
+   
    allocate( p%r(0:p%NumRadii-1),stat=errStat2)
       if (errStat2 /= 0) then
          call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for p%r.', errStat, errMsg, RoutineName )
@@ -664,7 +663,7 @@ subroutine AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitO
          return
    end if
    
-   interval = InitOut%dt
+   !interval = InitOut%dt
    
       !............................................................................................
       ! Define and initialize inputs here 
@@ -967,12 +966,11 @@ subroutine ValidateInitInputData( InputFileData, errStat, errMsg )
    errMsg  = ""
    
    
-   if (len(trim(InputFileData%WindFileRoot)) == 0) call SetErrStat ( ErrID_Fatal, 'WindFileRoot must contain at least one character.', errStat, errMsg, RoutineName )   
-   if (  InputFileData%NumTurbines <   1  )  call SetErrStat ( ErrID_Fatal, 'Number of turbines must be greater than zero.', ErrSTat, errMsg, RoutineName )
-   if (  InputFileData%NumPlanes   <   2  )  call SetErrStat ( ErrID_Fatal, 'Number of wake planes must be greater than one.', ErrSTat, errMsg, RoutineName )
-   if (  InputFileData%NumRadii    <   2  )  call SetErrStat ( ErrID_Fatal, 'Number of radii in the radial finite-difference grid must be greater than one.', ErrSTat, errMsg, RoutineName )
+   if (len_trim(InputFileData%WindFilePath) == 0) call SetErrStat ( ErrID_Fatal, 'WindFilePath must contain at least one character.', errStat, errMsg, RoutineName )   
+   if (  InputFileData%NumTurbines <   1  )  call SetErrStat ( ErrID_Fatal, 'Number of turbines must be greater than zero.', errStat, errMsg, RoutineName )
+   if (  InputFileData%NumPlanes   <   2  )  call SetErrStat ( ErrID_Fatal, 'Number of wake planes must be greater than one.', errStat, errMsg, RoutineName )
+   if (  InputFileData%NumRadii    <   2  )  call SetErrStat ( ErrID_Fatal, 'Number of radii in the radial finite-difference grid must be greater than one.', errStat, errMsg, RoutineName )
    if (  InputFileData%dr          <=  0.0)  call SetErrStat ( ErrID_Fatal, 'dr must be greater than zero.', errStat, errMsg, RoutineName ) 
-   if (  InputFileData%Tmax        <   0.0)  call SetErrStat ( ErrID_Fatal, 'Tmax must be greater than or equal to zero.', errStat, errMsg, RoutineName ) 
    
 end subroutine ValidateInitInputData
 
@@ -1010,12 +1008,11 @@ subroutine AWAE_TEST_Init_BadData(errStat, errMsg)
    
     
     interval               = 0.0_DbKi
-    InitInp%InputFileData%WindFileRoot       = '' 
+    InitInp%InputFileData%WindFilePath   = '' 
     InitInp%InputFileData%NumTurbines    = 0
     InitInp%InputFileData%NumPlanes      = 0
     InitInp%InputFileData%NumRadii       = 0
     InitInp%InputFileData%dr             = 0.0_ReKi
-    InitInp%InputFileData%tmax           = 0.0_DbKi
     
    call AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut, errStat, errMsg )
    
@@ -1029,12 +1026,11 @@ subroutine AWAE_TEST_SetGoodInitInpData(interval, InitInp)
 
       ! Based on NREL 5MW
     interval               = 1.0_DbKi
-    InitInp%InputFileData%WindFileRoot       = 'C:\Dev\NWTC Github\FAST.Farm\data' 
+    InitInp%InputFileData%WindFilePath   = 'C:\Dev\NWTC Github\FAST.Farm\data' 
     InitInp%InputFileData%NumTurbines    = 1
     InitInp%InputFileData%NumPlanes      = 500
     InitInp%InputFileData%NumRadii       = 40
     InitInp%InputFileData%dr             = 5.0_ReKi
-    InitInp%InputFileData%tmax           = 300.0_DbKi
 
 end subroutine AWAE_TEST_SetGoodInitInpData
 
@@ -1118,12 +1114,11 @@ subroutine AWAE_TEST_CalcOutput(errStat, errMsg)
    
       ! Based on NREL 5MW
     interval               = 1.0_DbKi
-    InitInp%InputFileData%WindFileRoot       = 'C:\Dev\NWTC Github\FAST.Farm\data' 
+    InitInp%InputFileData%WindFilePath   = 'C:\Dev\NWTC Github\FAST.Farm\data' 
     InitInp%InputFileData%NumTurbines    = 3
     InitInp%InputFileData%NumPlanes      = 500
     InitInp%InputFileData%NumRadii       = 40
     InitInp%InputFileData%dr             = 5.0_ReKi
-    InitInp%InputFileData%tmax           = 300.0_DbKi
    
       ! Initialize the module
    call AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, interval, InitOut, errStat, errMsg )

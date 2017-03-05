@@ -37,16 +37,18 @@ IMPLICIT NONE
 ! =========  AWAE_InputFileType  =======
   TYPE, PUBLIC :: AWAE_InputFileType
     REAL(ReKi)  :: dr      !< Radial increment of radial finite-difference grid [>0.0] [m]
+    REAL(DbKi)  :: dt_high      !< High-resolution time step [s]
     INTEGER(IntKi)  :: NumTurbines      !< Number of wind turbines in the farm [>=1] [-]
     INTEGER(IntKi)  :: NumRadii      !< Number of radii in the radial finite-difference grid  [>=2] [-]
     INTEGER(IntKi)  :: NumPlanes      !< Number of wake planes downwind of the rotor where the wake is propagated [>=2] [-]
-    REAL(DbKi)  :: tmax      !< Simulation length [>=0.0] [s]
-    CHARACTER(1024)  :: WindFileRoot      !< Root name of wind data files from ABLSolver precursor [-]
+    CHARACTER(1024)  :: WindFilePath      !< Path name of wind data files from ABLSolver precursor [-]
   END TYPE AWAE_InputFileType
 ! =======================
 ! =========  AWAE_InitInputType  =======
   TYPE, PUBLIC :: AWAE_InitInputType
     TYPE(AWAE_InputFileType)  :: InputFileData      !< FAST.Farm input-file data for AWAE module [-]
+    INTEGER(IntKi)  :: n_high_low      !< Number of high-resolution time steps per low [-]
+    INTEGER(IntKi)  :: NumDT      !< Number of low-resolution (FAST.Farm driver/glue code) time steps [-]
   END TYPE AWAE_InitInputType
 ! =======================
 ! =========  AWAE_InitOutputType  =======
@@ -54,10 +56,6 @@ IMPLICIT NONE
     CHARACTER(ChanLen) , DIMENSION(:), ALLOCATABLE  :: WriteOutputHdr      !< Names of the output-to-file channels [-]
     CHARACTER(ChanLen) , DIMENSION(:), ALLOCATABLE  :: WriteOutputUnt      !< Units of the output-to-file channels [-]
     TYPE(ProgDesc)  :: Ver      !< This module's name, version, and date [-]
-    REAL(DbKi)  :: dt      !< Low-resolution (FAST.Farm driver/glue code) time step [s]
-    REAL(DbKi)  :: dt_high      !< High-resolution time step [s]
-    INTEGER(IntKi)  :: n_high_low      !< Number of high-resolution time steps per low [-]
-    INTEGER(IntKi)  :: NumDT      !< Number of low-resolution (FAST.Farm driver/glue code) time steps [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: X0_high      !< X-component of the origin of the high-resolution spatial domain for each turbine [m]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: Y0_high      !< Y-component of the origin of the high-resolution spatial domain for each turbine [m]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: Z0_high      !< Z-component of the origin of the high-resolution spatial domain for each turbine [m]
@@ -166,11 +164,11 @@ CONTAINS
    ErrStat = ErrID_None
    ErrMsg  = ""
     DstInputFileTypeData%dr = SrcInputFileTypeData%dr
+    DstInputFileTypeData%dt_high = SrcInputFileTypeData%dt_high
     DstInputFileTypeData%NumTurbines = SrcInputFileTypeData%NumTurbines
     DstInputFileTypeData%NumRadii = SrcInputFileTypeData%NumRadii
     DstInputFileTypeData%NumPlanes = SrcInputFileTypeData%NumPlanes
-    DstInputFileTypeData%tmax = SrcInputFileTypeData%tmax
-    DstInputFileTypeData%WindFileRoot = SrcInputFileTypeData%WindFileRoot
+    DstInputFileTypeData%WindFilePath = SrcInputFileTypeData%WindFilePath
  END SUBROUTINE AWAE_CopyInputFileType
 
  SUBROUTINE AWAE_DestroyInputFileType( InputFileTypeData, ErrStat, ErrMsg )
@@ -220,11 +218,11 @@ CONTAINS
   Db_BufSz  = 0
   Int_BufSz  = 0
       Re_BufSz   = Re_BufSz   + 1  ! dr
+      Db_BufSz   = Db_BufSz   + 1  ! dt_high
       Int_BufSz  = Int_BufSz  + 1  ! NumTurbines
       Int_BufSz  = Int_BufSz  + 1  ! NumRadii
       Int_BufSz  = Int_BufSz  + 1  ! NumPlanes
-      Db_BufSz   = Db_BufSz   + 1  ! tmax
-      Int_BufSz  = Int_BufSz  + 1*LEN(InData%WindFileRoot)  ! WindFileRoot
+      Int_BufSz  = Int_BufSz  + 1*LEN(InData%WindFilePath)  ! WindFilePath
   IF ( Re_BufSz  .GT. 0 ) THEN 
      ALLOCATE( ReKiBuf(  Re_BufSz  ), STAT=ErrStat2 )
      IF (ErrStat2 /= 0) THEN 
@@ -254,16 +252,16 @@ CONTAINS
 
       ReKiBuf ( Re_Xferred:Re_Xferred+(1)-1 ) = InData%dr
       Re_Xferred   = Re_Xferred   + 1
+      DbKiBuf ( Db_Xferred:Db_Xferred+(1)-1 ) = InData%dt_high
+      Db_Xferred   = Db_Xferred   + 1
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%NumTurbines
       Int_Xferred   = Int_Xferred   + 1
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%NumRadii
       Int_Xferred   = Int_Xferred   + 1
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%NumPlanes
       Int_Xferred   = Int_Xferred   + 1
-      DbKiBuf ( Db_Xferred:Db_Xferred+(1)-1 ) = InData%tmax
-      Db_Xferred   = Db_Xferred   + 1
-        DO I = 1, LEN(InData%WindFileRoot)
-          IntKiBuf(Int_Xferred) = ICHAR(InData%WindFileRoot(I:I), IntKi)
+        DO I = 1, LEN(InData%WindFilePath)
+          IntKiBuf(Int_Xferred) = ICHAR(InData%WindFilePath(I:I), IntKi)
           Int_Xferred = Int_Xferred   + 1
         END DO ! I
  END SUBROUTINE AWAE_PackInputFileType
@@ -309,16 +307,16 @@ CONTAINS
   Int_Xferred  = 1
       OutData%dr = ReKiBuf( Re_Xferred )
       Re_Xferred   = Re_Xferred + 1
+      OutData%dt_high = DbKiBuf( Db_Xferred ) 
+      Db_Xferred   = Db_Xferred + 1
       OutData%NumTurbines = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1
       OutData%NumRadii = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1
       OutData%NumPlanes = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1
-      OutData%tmax = DbKiBuf( Db_Xferred ) 
-      Db_Xferred   = Db_Xferred + 1
-      DO I = 1, LEN(OutData%WindFileRoot)
-        OutData%WindFileRoot(I:I) = CHAR(IntKiBuf(Int_Xferred))
+      DO I = 1, LEN(OutData%WindFilePath)
+        OutData%WindFilePath(I:I) = CHAR(IntKiBuf(Int_Xferred))
         Int_Xferred = Int_Xferred   + 1
       END DO ! I
  END SUBROUTINE AWAE_UnPackInputFileType
@@ -340,6 +338,8 @@ CONTAINS
       CALL AWAE_Copyinputfiletype( SrcInitInputData%InputFileData, DstInitInputData%InputFileData, CtrlCode, ErrStat2, ErrMsg2 )
          CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg,RoutineName)
          IF (ErrStat>=AbortErrLev) RETURN
+    DstInitInputData%n_high_low = SrcInitInputData%n_high_low
+    DstInitInputData%NumDT = SrcInitInputData%NumDT
  END SUBROUTINE AWAE_CopyInitInput
 
  SUBROUTINE AWAE_DestroyInitInput( InitInputData, ErrStat, ErrMsg )
@@ -407,6 +407,8 @@ CONTAINS
          Int_BufSz = Int_BufSz + SIZE( Int_Buf )
          DEALLOCATE(Int_Buf)
       END IF
+      Int_BufSz  = Int_BufSz  + 1  ! n_high_low
+      Int_BufSz  = Int_BufSz  + 1  ! NumDT
   IF ( Re_BufSz  .GT. 0 ) THEN 
      ALLOCATE( ReKiBuf(  Re_BufSz  ), STAT=ErrStat2 )
      IF (ErrStat2 /= 0) THEN 
@@ -462,6 +464,10 @@ CONTAINS
       ELSE
         IntKiBuf( Int_Xferred ) = 0; Int_Xferred = Int_Xferred + 1
       ENDIF
+      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%n_high_low
+      Int_Xferred   = Int_Xferred   + 1
+      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%NumDT
+      Int_Xferred   = Int_Xferred   + 1
  END SUBROUTINE AWAE_PackInitInput
 
  SUBROUTINE AWAE_UnPackInitInput( ReKiBuf, DbKiBuf, IntKiBuf, Outdata, ErrStat, ErrMsg )
@@ -537,6 +543,10 @@ CONTAINS
       IF(ALLOCATED(Re_Buf )) DEALLOCATE(Re_Buf )
       IF(ALLOCATED(Db_Buf )) DEALLOCATE(Db_Buf )
       IF(ALLOCATED(Int_Buf)) DEALLOCATE(Int_Buf)
+      OutData%n_high_low = IntKiBuf( Int_Xferred ) 
+      Int_Xferred   = Int_Xferred + 1
+      OutData%NumDT = IntKiBuf( Int_Xferred ) 
+      Int_Xferred   = Int_Xferred + 1
  END SUBROUTINE AWAE_UnPackInitInput
 
  SUBROUTINE AWAE_CopyInitOutput( SrcInitOutputData, DstInitOutputData, CtrlCode, ErrStat, ErrMsg )
@@ -581,10 +591,6 @@ ENDIF
       CALL NWTC_Library_Copyprogdesc( SrcInitOutputData%Ver, DstInitOutputData%Ver, CtrlCode, ErrStat2, ErrMsg2 )
          CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg,RoutineName)
          IF (ErrStat>=AbortErrLev) RETURN
-    DstInitOutputData%dt = SrcInitOutputData%dt
-    DstInitOutputData%dt_high = SrcInitOutputData%dt_high
-    DstInitOutputData%n_high_low = SrcInitOutputData%n_high_low
-    DstInitOutputData%NumDT = SrcInitOutputData%NumDT
 IF (ALLOCATED(SrcInitOutputData%X0_high)) THEN
   i1_l = LBOUND(SrcInitOutputData%X0_high,1)
   i1_u = UBOUND(SrcInitOutputData%X0_high,1)
@@ -761,10 +767,6 @@ ENDIF
          Int_BufSz = Int_BufSz + SIZE( Int_Buf )
          DEALLOCATE(Int_Buf)
       END IF
-      Db_BufSz   = Db_BufSz   + 1  ! dt
-      Db_BufSz   = Db_BufSz   + 1  ! dt_high
-      Int_BufSz  = Int_BufSz  + 1  ! n_high_low
-      Int_BufSz  = Int_BufSz  + 1  ! NumDT
   Int_BufSz   = Int_BufSz   + 1     ! X0_high allocated yes/no
   IF ( ALLOCATED(InData%X0_high) ) THEN
     Int_BufSz   = Int_BufSz   + 2*1  ! X0_high upper/lower bounds for each dimension
@@ -887,14 +889,6 @@ ENDIF
       ELSE
         IntKiBuf( Int_Xferred ) = 0; Int_Xferred = Int_Xferred + 1
       ENDIF
-      DbKiBuf ( Db_Xferred:Db_Xferred+(1)-1 ) = InData%dt
-      Db_Xferred   = Db_Xferred   + 1
-      DbKiBuf ( Db_Xferred:Db_Xferred+(1)-1 ) = InData%dt_high
-      Db_Xferred   = Db_Xferred   + 1
-      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%n_high_low
-      Int_Xferred   = Int_Xferred   + 1
-      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%NumDT
-      Int_Xferred   = Int_Xferred   + 1
   IF ( .NOT. ALLOCATED(InData%X0_high) ) THEN
     IntKiBuf( Int_Xferred ) = 0
     Int_Xferred = Int_Xferred + 1
@@ -1109,14 +1103,6 @@ ENDIF
       IF(ALLOCATED(Re_Buf )) DEALLOCATE(Re_Buf )
       IF(ALLOCATED(Db_Buf )) DEALLOCATE(Db_Buf )
       IF(ALLOCATED(Int_Buf)) DEALLOCATE(Int_Buf)
-      OutData%dt = DbKiBuf( Db_Xferred ) 
-      Db_Xferred   = Db_Xferred + 1
-      OutData%dt_high = DbKiBuf( Db_Xferred ) 
-      Db_Xferred   = Db_Xferred + 1
-      OutData%n_high_low = IntKiBuf( Int_Xferred ) 
-      Int_Xferred   = Int_Xferred + 1
-      OutData%NumDT = IntKiBuf( Int_Xferred ) 
-      Int_Xferred   = Int_Xferred + 1
   IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! X0_high not allocated
     Int_Xferred = Int_Xferred + 1
   ELSE

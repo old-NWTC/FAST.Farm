@@ -48,7 +48,7 @@ subroutine ScanDir(dir, listingName)
 #else
    call system('ls '//trim(dir)//' > '//trim(listingName))
 #endif
-end subroutine
+end subroutine ScanDir
    
 subroutine ReadLowResWindFileHeaders(p, errStat, errMsg)
    type(AWAE_ParameterType),       intent(in   )  :: p            !< Parameters
@@ -154,7 +154,6 @@ subroutine AWAE_IO_InitGridInfo(p, InitOut, errStat, errMsg)
    character(ErrMsgLen)                       :: errMsg2       ! temporary error message 
    character(*), parameter                    :: RoutineName = 'AWAE_IO_InitGridInfo'
    real(ReKi)                                 :: X0_low, Y0_low, Z0_low, dX_low, dY_low, dZ_low, dt_low, dt_high
-   real(ReKi)                                 :: X0_high, Y0_high, Z0_high, dX_high, dY_high, dZ_high
    integer(IntKi)                             :: nXYZ_low, nt, nx_low, ny_low, nz_low, nXYZ_high, nx_high, ny_high, nz_high
    errStat = ErrID_None
    errMsg  = ""
@@ -193,7 +192,7 @@ subroutine AWAE_IO_InitGridInfo(p, InitOut, errStat, errMsg)
    NumGrid_high       = p%nX_high*p%nY_high*p%nZ_high
    
       ! Determine the number of high res timesteps per a single low res time step by parsing folder names?
-   p%n_high_low       = 5
+   !p%n_high_low       = 5
      
    allocate( p%Grid_low(3,NumGrid_low),stat=errStat2)
       if (errStat2 /= 0) then
@@ -216,26 +215,39 @@ subroutine AWAE_IO_InitGridInfo(p, InitOut, errStat, errMsg)
          call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for Grid_high.', errStat, errMsg, RoutineName )
          return
       end if
+      
+   allocate( InitOut%X0_high(p%NumTurbines), InitOut%Y0_high(p%NumTurbines), InitOut%Z0_high(p%NumTurbines), stat=errStat2)   
+      if (errStat2 /= 0) call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for InitOut origin arrays.', errStat, errMsg, RoutineName )
+   allocate( InitOut%dX_high(p%NumTurbines), InitOut%dY_high(p%NumTurbines), InitOut%dZ_high(p%NumTurbines), stat=errStat2)   
+      if (errStat2 /= 0) call SetErrStat ( ErrID_Fatal, 'Could not allocate memory for InitOut spatial increment arrays.', errStat, errMsg, RoutineName )
+
+   if (ErrStat >= AbortErrLev) return
+         
    do nt = 1, p%NumTurbines 
-      X0_high = -75.0_ReKi
-      Y0_high = -75.0_ReKi
-      Z0_high = 0.0_ReKi
-      dX_high = 10.0_ReKi
-      dY_high = 10.0_ReKi
-      dZ_high = 10.0_ReKi
+      InitOut%X0_high(nt) = -75.0_ReKi
+      InitOut%Y0_high(nt) = -75.0_ReKi
+      InitOut%Z0_high(nt) = 0.0_ReKi
+      
+      InitOut%dX_high(nt) = 10.0_ReKi
+      InitOut%dY_high(nt) = 10.0_ReKi
+      InitOut%dZ_high(nt) = 10.0_ReKi
       nXYZ_high = 0
       do nz_high=0, p%nZ_high-1 
          do ny_high=0, p%nY_high-1
             do nx_high=0, p%nX_high-1
                nXYZ_high = nXYZ_high + 1
-               p%Grid_high(1,nXYZ_high,nt) = X0_high + nx_high*dX_high
-               p%Grid_high(2,nXYZ_high,nt) = Y0_high + ny_high*dY_high
-               p%Grid_high(3,nXYZ_high,nt) = Z0_high + nz_high*dZ_high            
+               p%Grid_high(1,nXYZ_high,nt) = InitOut%X0_high(nt) + nx_high*InitOut%dX_high(nt)
+               p%Grid_high(2,nXYZ_high,nt) = InitOut%Y0_high(nt) + ny_high*InitOut%dY_high(nt)
+               p%Grid_high(3,nXYZ_high,nt) = InitOut%Z0_high(nt) + nz_high*InitOut%dZ_high(nt)            
             end do
          end do
       end do
       
    end do
+   
+   InitOut%nx_high = p%nx_high
+   InitOut%ny_high = p%ny_high
+   InitOut%nz_high = p%nz_high
    
    !TODO:  Set the corresponding InitOut data 
    !TODO:  Perform any error checking on InitOut here

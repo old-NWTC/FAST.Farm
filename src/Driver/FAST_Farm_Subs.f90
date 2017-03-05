@@ -128,39 +128,52 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
    farm%p%n_TMax_m1  = FLOOR( ( farm%p%TMax / farm%p%DT ) )  ! We're going to go from step 0 to n_TMax (thus the -1 here) [note that FAST uses the ceiling function, so it might think we're doing one more step than FAST.Farm]
 
    !...............................................................................................................................  
-   ! step 3: initialize SC and AWAE (a and b can be done in parallel)
+   ! step 3: initialize SC, AWAE, and WD (a, b, and c can be done in parallel)
    !...............................................................................................................................  
    
       !-------------------
       ! a. CALL AWAE_Init
    
+   AWAE_InitInput%InputFileData%dr           = WD_InitInput%InputFileData%dr
+   AWAE_InitInput%InputFileData%dt_high      = farm%p%dt_high
+   AWAE_InitInput%InputFileData%NumTurbines  = farm%p%NumTurbines
+   AWAE_InitInput%InputFileData%NumRadii     = WD_InitInput%InputFileData%NumRadii
+   AWAE_InitInput%InputFileData%NumPlanes    = WD_InitInput%InputFileData%NumPlanes
+   AWAE_InitInput%InputFileData%WindFilePath = farm%p%WindFilePath
+   AWAE_InitInput%n_high_low                 = farm%p%n_high_low
+   AWAE_InitInput%NumDT                      = farm%p%n_TMax_m1 + 1
+   
+   call AWAE_Init( AWAE_InitInput, farm%AWAE%u, farm%AWAE%p, farm%AWAE%x, farm%AWAE%xd, farm%AWAE%z, farm%AWAE%OtherSt, farm%AWAE%y, &
+                   farm%AWAE%m, farm%p%DT, AWAE_InitOutput, ErrStat2, ErrMsg2 )
+      CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+      IF (ErrStat >= AbortErrLev) THEN
+         CALL Cleanup()
+         RETURN
+      END IF   
+
    
       !-------------------
       ! b. CALL SC_Init
 
    
-   !...............................................................................................................................  
-   ! step 4: initialize WD and FAST (a and b can be done in parallel; each instance of FAST can also be done in parallel)
-   !...............................................................................................................................  
-   
+      
       !-------------------
-      ! a. initialize WD
-   
-         ! Transfer AWAE_InitOutput to WD_InitInput?
-   
+      ! c. initialize WD (one instance per turbine, each can be done in parallel, too)
+      
    call Farm_InitWD( farm, WD_InitInput, ErrStat2, ErrMsg2 )
       CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       IF (ErrStat >= AbortErrLev) THEN
          CALL Cleanup()
          RETURN
       END IF   
-   
-      !-------------------
-      ! b. initialize FAST (each instance can be done in parallel inside Farm_InitFAST)
       
-!   CALL Farm_InitFAST( farm, WD_InitInput%InputFileData, AWAE_InitOutput, ErrStat2, ErrMsg2)
-   CALL Farm_InitFAST( farm, WD_InitInput%InputFileData, ErrStat2, ErrMsg2)
-      CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+      
+   !...............................................................................................................................  
+   ! step 4: initialize FAST (each instance of FAST can also be done in parallel)
+   !...............................................................................................................................  
+         
+   CALL Farm_InitFAST( farm, WD_InitInput%InputFileData, AWAE_InitOutput, ErrStat2, ErrMsg2)
+     CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       IF (ErrStat >= AbortErrLev) THEN
          CALL Cleanup()
          RETURN
@@ -1014,12 +1027,13 @@ contains
 END SUBROUTINE Farm_InitWD
 !----------------------------------------------------------------------------------------------------------------------------------
 !> This routine initializes all instances of FAST using the FASTWrapper module
-SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
+SUBROUTINE Farm_InitFAST( farm, WD_InitInp, AWAE_InitOutput, ErrStat, ErrMsg )
 
 
       ! Passed variables
    type(All_FastFarm_Data),  INTENT(INOUT) :: farm                            !< FAST.Farm data
    TYPE(WD_InputFileType),   INTENT(IN   ) :: WD_InitInp                      !< input-file data for WakeDynamics module
+   TYPE(AWAE_InitOutputType),INTENT(IN   ) :: AWAE_InitOutput                 !< initialization output from AWAE
    INTEGER(IntKi),           INTENT(  OUT) :: ErrStat                         !< Error status
    CHARACTER(*),             INTENT(  OUT) :: ErrMsg                          !< Error message
 
@@ -1048,17 +1062,12 @@ SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
       FWrap_InitInp%nr            = WD_InitInp%NumRadii
       FWrap_InitInp%dr            = WD_InitInp%dr
       FWrap_InitInp%tmax          = farm%p%TMax
-      
-         ! data from AWAE_InitOut
-      FWrap_InitInp%n_high_low    = 4
-      FWrap_InitInp%dt_high       = .05
-      FWrap_InitInp%p_ref_high    = (/ -100, -100, 10 /)
-      FWrap_InitInp%nX_high       = 2
-      FWrap_InitInp%nY_high       = 2
-      FWrap_InitInp%nZ_high       = 2
-      FWrap_InitInp%dX_high       = 200.0
-      FWrap_InitInp%dY_high       = 200.0
-      FWrap_InitInp%dZ_high       = 200.0
+      FWrap_InitInp%n_high_low    = farm%p%n_high_low
+      FWrap_InitInp%dt_high       = farm%p%dt_high
+     
+      FWrap_InitInp%nX_high       = AWAE_InitOutput%nX_high
+      FWrap_InitInp%nY_high       = AWAE_InitOutput%nY_high
+      FWrap_InitInp%nZ_high       = AWAE_InitOutput%nZ_high
       
       DO i_turb = 1,farm%p%NumTurbines
          !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1069,6 +1078,16 @@ SUBROUTINE Farm_InitFAST( farm, WD_InitInp, ErrStat, ErrMsg )
          FWrap_InitInp%p_ref_Turbine = farm%p%WT_Position(:,i_turb)
          FWrap_InitInp%TurbNum       = i_turb
          FWrap_InitInp%RootName      = trim(farm%p%OutFileRoot)//'.T'//num2lstr(i_turb)
+         
+         
+         FWrap_InitInp%p_ref_high(1) = AWAE_InitOutput%X0_high(i_turb)
+         FWrap_InitInp%p_ref_high(2) = AWAE_InitOutput%Y0_high(i_turb)
+         FWrap_InitInp%p_ref_high(3) = AWAE_InitOutput%Z0_high(i_turb)
+
+         FWrap_InitInp%dX_high       = AWAE_InitOutput%dX_high(i_turb)
+         FWrap_InitInp%dY_high       = AWAE_InitOutput%dY_high(i_turb)
+         FWrap_InitInp%dZ_high       = AWAE_InitOutput%dZ_high(i_turb)
+         
          
             ! note that FWrap_Init has Interval as INTENT(IN) so, we don't need to worry about overwriting farm%p%dt here:
          call FWrap_Init( FWrap_InitInp, farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &

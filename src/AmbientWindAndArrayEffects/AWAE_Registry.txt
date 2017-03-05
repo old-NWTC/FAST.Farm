@@ -16,27 +16,26 @@ include Registry_NWTC_Library.txt
 param     AWAE/AWAE   unused              INTEGER         MAX_WAKE_VOL_PTS    -  1000    -         "The maximum supported number grid points located within a single wake plane volume."    -
 # ..... InputFile Data .......................................................................................................
 typedef   AWAE/AWAE   AWAE_InputFileType  ReKi            dr             - - -  "Radial increment of radial finite-difference grid [>0.0]" m
+#typedef   ^           AWAE_InputFileType  DbKi            dt             - - -  "Low-resolution (FAST.Farm driver/glue code) time step" s
+typedef   ^           AWAE_InputFileType  DbKi            dt_high        - - -  "High-resolution time step" s
 typedef   ^           AWAE_InputFileType  IntKi           NumTurbines    - - -  "Number of wind turbines in the farm [>=1]" -
 typedef   ^           AWAE_InputFileType  IntKi           NumRadii       - - -  "Number of radii in the radial finite-difference grid  [>=2]" -
 typedef   ^           AWAE_InputFileType  IntKi           NumPlanes      - - -  "Number of wake planes downwind of the rotor where the wake is propagated [>=2]" -
-typedef   ^           AWAE_InputFileType  DbKi            tmax           - - -  "Simulation length [>=0.0]" s
-typedef   ^           AWAE_InputFileType  CHARACTER(1024) WindFileRoot   - - -  "Root name of wind data files from ABLSolver precursor" -
+typedef   ^           AWAE_InputFileType  CHARACTER(1024) WindFilePath   - - -  "Path name of wind data files from ABLSolver precursor" -
 
 
 # ..... Initialization data .......................................................................................................
 # Define inputs that the initialization routine may need here:
 #   e.g., the name of the input file, the file root name, etc.
 typedef   ^ InitInputType  AWAE_InputFileType InputFileData    -  - -   "FAST.Farm input-file data for AWAE module" -
+typedef   ^ InitInputType  IntKi              n_high_low       -  - -   "Number of high-resolution time steps per low" -
+typedef   ^ InitInputType  IntKi              NumDT            -  - -   "Number of low-resolution (FAST.Farm driver/glue code) time steps" -
 
 
 # Define outputs from the initialization routine here:
 typedef   ^ InitOutputType CHARACTER(ChanLen) WriteOutputHdr  {:} - -   "Names of the output-to-file channels" -
 typedef   ^ InitOutputType CHARACTER(ChanLen) WriteOutputUnt  {:} - -   "Units of the output-to-file channels" -
 typedef   ^ InitOutputType ProgDesc           Ver              -  - -   "This module's name, version, and date"      -
-typedef   ^ InitOutputType DbKi               dt               -  - -   "Low-resolution (FAST.Farm driver/glue code) time step" s
-typedef   ^ InitOutputType DbKi               dt_high          -  - -   "High-resolution time step" s
-typedef   ^ InitOutputType IntKi              n_high_low       -  - -   "Number of high-resolution time steps per low" -
-typedef   ^ InitOutputType IntKi              NumDT            -  - -   "Number of low-resolution (FAST.Farm driver/glue code) time steps" -
 typedef   ^ InitOutputType ReKi               X0_high         {:} - -   "X-component of the origin of the high-resolution spatial domain for each turbine" m
 typedef   ^ InitOutputType ReKi               Y0_high         {:} - -   "Y-component of the origin of the high-resolution spatial domain for each turbine" m
 typedef   ^ InitOutputType ReKi               Z0_high         {:} - -   "Z-component of the origin of the high-resolution spatial domain for each turbine" m
