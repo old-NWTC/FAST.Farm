@@ -1409,15 +1409,17 @@ subroutine FARM_End(farm, ErrStat, ErrMsg)
       
       !--------------
       ! 2. end WakeDynamics
-   
-   DO i_turb = 1,farm%p%NumTurbines
-      if (farm%WD(i_turb)%IsInitialized) then      
-         call WD_End( farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
-                      farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%y, farm%WD(i_turb)%m, ErrStat2, ErrMsg2 )         
-            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
-      end if      
-   END DO
-   
+   if (allocated(farm%WD)) then
+      
+      DO i_turb = 1,farm%p%NumTurbines
+         if (farm%WD(i_turb)%IsInitialized) then      
+            call WD_End( farm%WD(i_turb)%u, farm%WD(i_turb)%p, farm%WD(i_turb)%x, farm%WD(i_turb)%xd, farm%WD(i_turb)%z, &
+                         farm%WD(i_turb)%OtherSt, farm%WD(i_turb)%y, farm%WD(i_turb)%m, ErrStat2, ErrMsg2 )         
+               call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
+         end if      
+      END DO
+      
+   end if
    
       !--------------
       ! 3. End supercontroller
@@ -1427,14 +1429,17 @@ subroutine FARM_End(farm, ErrStat, ErrMsg)
       !--------------
       ! 4. End each instance of FAST (each instance of FAST can be done in parallel, too)
    
-   DO i_turb = 1,farm%p%NumTurbines
-      if (farm%FWrap(i_turb)%IsInitialized) then
-         CALL FWrap_End( farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
-                         farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, ErrStat2, ErrMsg2 )
-         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
-      end if
-   END DO
+   if (allocated(farm%FWrap)) then
       
+      DO i_turb = 1,farm%p%NumTurbines
+         if (farm%FWrap(i_turb)%IsInitialized) then
+            CALL FWrap_End( farm%FWrap(i_turb)%u, farm%FWrap(i_turb)%p, farm%FWrap(i_turb)%x, farm%FWrap(i_turb)%xd, farm%FWrap(i_turb)%z, &
+                            farm%FWrap(i_turb)%OtherSt, farm%FWrap(i_turb)%y, farm%FWrap(i_turb)%m, ErrStat2, ErrMsg2 )
+            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
+         end if
+      END DO
+      
+   end if   
    
    !.......................................................................................
    ! close output file
