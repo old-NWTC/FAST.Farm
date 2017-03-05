@@ -66,6 +66,7 @@ IMPLICIT NONE
   TYPE, PUBLIC :: WD_InitInputType
     CHARACTER(1024)  :: RootName      !< The root name derived from the primary FAST.Farm input file [For output reporting in this module we need to have Rootname include the turbine number] [-]
     TYPE(WD_InputFileType)  :: InputFileData      !< FAST.Farm input-file data for wake dynamics [-]
+    INTEGER(IntKi)  :: TurbNum = 0      !< Turbine ID number (start with 1; end with number of turbines) [-]
   END TYPE WD_InitInputType
 ! =======================
 ! =========  WD_InitOutputType  =======
@@ -446,6 +447,7 @@ CONTAINS
       CALL WD_Copyinputfiletype( SrcInitInputData%InputFileData, DstInitInputData%InputFileData, CtrlCode, ErrStat2, ErrMsg2 )
          CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg,RoutineName)
          IF (ErrStat>=AbortErrLev) RETURN
+    DstInitInputData%TurbNum = SrcInitInputData%TurbNum
  END SUBROUTINE WD_CopyInitInput
 
  SUBROUTINE WD_DestroyInitInput( InitInputData, ErrStat, ErrMsg )
@@ -514,6 +516,7 @@ CONTAINS
          Int_BufSz = Int_BufSz + SIZE( Int_Buf )
          DEALLOCATE(Int_Buf)
       END IF
+      Int_BufSz  = Int_BufSz  + 1  ! TurbNum
   IF ( Re_BufSz  .GT. 0 ) THEN 
      ALLOCATE( ReKiBuf(  Re_BufSz  ), STAT=ErrStat2 )
      IF (ErrStat2 /= 0) THEN 
@@ -573,6 +576,8 @@ CONTAINS
       ELSE
         IntKiBuf( Int_Xferred ) = 0; Int_Xferred = Int_Xferred + 1
       ENDIF
+      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%TurbNum
+      Int_Xferred   = Int_Xferred   + 1
  END SUBROUTINE WD_PackInitInput
 
  SUBROUTINE WD_UnPackInitInput( ReKiBuf, DbKiBuf, IntKiBuf, Outdata, ErrStat, ErrMsg )
@@ -652,6 +657,8 @@ CONTAINS
       IF(ALLOCATED(Re_Buf )) DEALLOCATE(Re_Buf )
       IF(ALLOCATED(Db_Buf )) DEALLOCATE(Db_Buf )
       IF(ALLOCATED(Int_Buf)) DEALLOCATE(Int_Buf)
+      OutData%TurbNum = IntKiBuf( Int_Xferred ) 
+      Int_Xferred   = Int_Xferred + 1
  END SUBROUTINE WD_UnPackInitInput
 
  SUBROUTINE WD_CopyInitOutput( SrcInitOutputData, DstInitOutputData, CtrlCode, ErrStat, ErrMsg )

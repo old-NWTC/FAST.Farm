@@ -302,9 +302,10 @@ subroutine WD_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
 
    call NWTC_Init( EchoLibVer=.FALSE. )
 
+   
       ! Display the module information
 
-   call DispNVD( WD_Ver )
+   if (InitInp%TurbNum <= 1) call DispNVD( WD_Ver )
    
    
    ! TODO: For output reporting in this module we need to have Rootname include the turbine number 
