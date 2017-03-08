@@ -126,7 +126,12 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
    farm%p%TChanLen = max( 10, int(log10(farm%p%TMax))+7 )
    farm%p%OutFmt_t = 'F'//trim(num2lstr( farm%p%TChanLen ))//'.4' ! 'F10.4'    
    farm%p%n_TMax_m1  = FLOOR( ( farm%p%TMax / farm%p%DT ) )  ! We're going to go from step 0 to n_TMax (thus the -1 here) [note that FAST uses the ceiling function, so it might think we're doing one more step than FAST.Farm]
-
+   
+   IF ( WD_InitInput%InputFileData%NumPlanes > farm%p%n_TMax_m1+1 ) THEN
+      WD_InitInput%InputFileData%NumPlanes = max( 2, min( WD_InitInput%InputFileData%NumPlanes, farm%p%n_TMax_m1+1 ) )
+      call SetErrStat(ErrID_Warn, "For efficiency, NumPlanes has been reduced to the number of time steps ("//TRIM(Num2LStr(WD_InitInput%InputFileData%NumPlanes))//").", ErrStat, ErrMsg, RoutineName )
+   ENDIF
+   
    !...............................................................................................................................  
    ! step 3: initialize SC, AWAE, and WD (a, b, and c can be done in parallel)
    !...............................................................................................................................  
