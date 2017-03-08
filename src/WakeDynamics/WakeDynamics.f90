@@ -860,7 +860,7 @@ subroutine WD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg )
    integer(intKi)                               :: ErrStat2
    character(ErrMsgLen)                         :: ErrMsg2
    character(*), parameter                      :: RoutineName = 'WD_CalcOutput'
-   real(ReKi)                                   :: correction(3)
+   real(ReKi)                                   :: correction(3), xxdisk(3), yydisk(3), xydisknorm, tmp_xhat_disk(3)
    real(ReKi)                                   :: x_plane
    errStat = ErrID_None
    errMsg  = ""
@@ -870,6 +870,13 @@ subroutine WD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg )
       ! Check if we are fully initialized
    if ( OtherState%firstPass ) then
       ! TODO: This entire block needs to be reviewed
+                 
+      ! Define a temparary version that is the horizontal component of u%xhat_disk (used to initialize all downwind wake planes).
+      xxdisk = (/u%xhat_disk(1), 0.0, 0.0/)
+      yydisk = (/0.0, u%xhat_disk(2), 0.0/)
+      xydisknorm = TwoNorm(xxdisk + yydisk)
+      tmp_xhat_disk = ( xxdisk + yydisk ) / xydisknorm
+       
       do i = 0, p%NumPlanes - 1
          x_plane = u%Vx_rel_disk*real(i,ReKi)*real(p%DT,ReKi)
        
@@ -880,8 +887,13 @@ subroutine WD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg )
                return
             end if
       
-         y%p_plane     (:,i) = u%p_hub(:) + x_plane*u%xhat_disk(:) + correction
-         y%xhat_plane  (:,i) = u%xhat_disk(:)
+         y%p_plane     (:,i) = u%p_hub(:) + x_plane*tmp_xhat_disk(:) + correction
+
+         if ( i == 0 ) then
+            y%xhat_plane   (:,i) = u%xhat_disk(:)
+         else
+            y%xhat_plane   (:,i) = tmp_xhat_disk(:)
+         end if         
          
             ! NOTE: Since we are in firstPass=T, then xd%Vx_wake is already set to zero, so just pass that into WakeDiam
          y%D_wake(i)  =  WakeDiam( p%Mod_WakeDiam, p%NumRadii, p%dr, p%r, xd%Vx_wake(:,i), u%Vx_wind_disk, u%D_rotor, p%C_WakeDiam)
@@ -1007,13 +1019,19 @@ subroutine InitStatesWithInputs(numPlanes, numRadii, u, p, xd, errStat, errMsg)
    integer(IntKi) :: i
    integer(intKi)                               :: ErrStat2
    character(ErrMsgLen)                         :: ErrMsg2
-   real(ReKi)     :: tmpVel, correctionA(3), correction(3), xydisk(3), yxdisk(3), xxdisk(3), yydisk(3), xydisknorm
+   real(ReKi)     :: correction(3), xxdisk(3), yydisk(3), xydisknorm, tmp_xhat_disk(3)
    ! Note, all of these states will have been set to zero in the WD_Init routine
    
      
    ErrStat = ErrID_None
    ErrMsg = ""
-      
+   
+   ! Define a temparary version that is the horizontal component of u%xhat_disk (used to initialize all downwind wake planes).
+   xxdisk = (/u%xhat_disk(1), 0.0, 0.0/)
+   yydisk = (/0.0, u%xhat_disk(2), 0.0/)
+   xydisknorm = TwoNorm(xxdisk + yydisk)
+   tmp_xhat_disk = ( xxdisk + yydisk ) / xydisknorm   
+   
    do i = 0, numPlanes - 1
       xd%x_plane     (i)   = u%Vx_rel_disk*real(i,ReKi)*real(p%DT,ReKi)
       xd%YawErr_filt (i)   = u%YawErr
@@ -1027,8 +1045,14 @@ subroutine InitStatesWithInputs(numPlanes, numRadii, u, p, xd, errStat, errMsg)
       
       !correction = ( p%C_HWkDfl_x + p%C_HWkDfl_xY*u%YawErr )*xd%x_plane(i) + correctionA
       
-      xd%p_plane     (:,i) = u%p_hub(:) + xd%x_plane(i)*u%xhat_disk(:) + correction
-      xd%xhat_plane  (:,i) = u%xhat_disk(:)
+      xd%p_plane     (:,i) = u%p_hub(:) + xd%x_plane(i)*tmp_xhat_disk(:) + correction
+      
+      if ( i == 0 ) then
+          xd%xhat_plane (:,i) = u%xhat_disk(:)
+      else
+          xd%xhat_plane (:,i) = tmp_xhat_disk
+      end if
+      
       xd%Vx_wind_disk_filt(i) = u%Vx_wind_disk
       xd%TI_amb_filt      (i) = u%TI_amb
       xd%D_rotor_filt     (i) = u%D_rotor
