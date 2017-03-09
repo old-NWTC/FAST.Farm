@@ -703,10 +703,9 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
          end if  
       do j = 1,p%NumRadii-1
             ! NOTE: xd%Vr_wake(0,:) was initialized to 0 and remains 0.
-            !  Vr_wake is for the                [n+1]        ,          [n]                  , and           [n]              increments
-         xd%Vr_wake(j,i) = real(j-1,ReKi)*(  xd%Vr_wake(j-1,i)     + xd%Vr_wake(j-1,i-1) )/real(j,ReKi) - xd%Vr_wake(j,i-1)    &
-            !  Vx_wake is for the                           [n+1]      ,      [n+1]        ,      [n]          , and  [n]             increments             
-                           - real(2*j-1,ReKi)*p%dr * (  xd%Vx_wake(j,i) + xd%Vx_wake(j-1,i) - xd%Vx_wake(j,i-1) - xd%Vx_wake(j-1,i-1)    ) / ( real(2*j,ReKi) * dx )
+         xd%Vr_wake(j,i) = real(  j-1,ReKi)*(  xd%Vr_wake(j-1,i)  )/real(j,ReKi) &
+            !  Vx_wake is for the                         [n+1]       ,      [n+1]        ,      [n]          , and    [n]        increments             
+                         - real(2*j-1,ReKi)*p%dr * (  xd%Vx_wake(j,i) + xd%Vx_wake(j-1,i) - xd%Vx_wake(j,i-1) - xd%Vx_wake(j-1,i-1)  ) / ( real(4*j,ReKi) * dx )
       end do  
    end do ! i = 1,p%NumPlanes-1 
  
@@ -818,7 +817,7 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
       xd%Vr_wake(j,0) = 0.0_ReKi
    end do
    
-   
+!Used for debugging: write(51,'(I5,100(1x,ES10.2E2))') n, xd%x_plane(n), xd%x_plane(n)/xd%D_rotor_filt(n), xd%Vx_wind_disk_filt(n) + xd%Vx_wake(:,n), xd%Vr_wake(:,n)    
    
    call Cleanup()
    
