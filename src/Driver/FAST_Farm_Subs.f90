@@ -48,9 +48,8 @@ MODULE FAST_Farm_Subs
 !!   -  In parallel:
 !!      1.  CALL AWAE_Init
 !!      2.  CALL_SC_Init
-!!   -  In parallel:
-!!      1.  Transfer y_AWAE_Init to u_WD_Init and CALL WD_Init 
-!!      2.  Transfer y_AWAE_Init to u_F_Init and CALL F_Init
+!!      3.  CALL WD_Init
+!!   -  Transfer y_AWAE_Init to u_F_Init and CALL F_Init
 !!   -  Open Output File
 !!   -  n=0
 !!   -  t=0
@@ -1151,23 +1150,23 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
    
       !--------------------
       ! 1a. u_AWAE=0         
-
+   farm%AWAE%u%xhat_plane = 0.0_ReKi     ! Orientations of wake planes, normal to wake planes, for each turbine
+   farm%AWAE%u%p_plane    = 0.0_ReKi     ! Center positions of wake planes for each turbine
+   farm%AWAE%u%Vx_wake    = 0.0_ReKi     ! Axial wake velocity deficit at wake planes, distributed radially, for each turbine
+   farm%AWAE%u%Vr_wake    = 0.0_ReKi     ! Radial wake velocity deficit at wake planes, distributed radially, for each turbine
+   farm%AWAE%u%D_wake     = 0.0_ReKi     ! Wake diameters at wake planes for each turbine      
+   
       !--------------------
       ! 1b. CALL AWAE_CO         
+   call AWAE_CalcOutput( 0.0_DbKi, farm%AWAE%u, farm%AWAE%p, farm%AWAE%x, farm%AWAE%xd, farm%AWAE%z, &
+                     farm%AWAE%OtherSt, farm%AWAE%y, farm%AWAE%m, ErrStat2, ErrMsg2 )         
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 
       !--------------------
       ! 1c. transfer y_AWAE to u_F and u_WD         
    
-   
-   
-   DO i_turb = 1,farm%p%NumTurbines
-      farm%WD(i_turb)%u%V_plane(1,  :) = 7.0_ReKi  ! Advection, deflection, and meandering velocity of wake planes, m/s
-      farm%WD(i_turb)%u%V_plane(2:3,:) = 0.0_ReKi  ! Advection, deflection, and meandering velocity of wake planes, m/s
-      farm%WD(i_turb)%u%Vx_wind_disk   = 8.0_ReKi  ! Rotor-disk-averaged ambient wind speed, normal to planes, m/s
-      farm%WD(i_turb)%u%TI_amb         = 0.1_ReKi  ! Ambient turbulence intensity of wind at rotor disk
-   END DO
-   
    call Transfer_AWAE_to_FAST(farm)      
+   call Transfer_AWAE_to_WD(farm)   
    
       !--------------------
       ! 2a. u_SC=0         
@@ -1223,20 +1222,30 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
          call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
                
    END DO
-   
+   if (ErrStat >= AbortErrLev) return
    
    !.......................................................................................
    ! Transfer y_WD to u_AWAE
    !.......................................................................................
    
+   call Transfer_WD_to_AWAE(farm)
+   
    !.......................................................................................
-   ! CALL AWEA_CO
+   ! CALL AWAE_CO
    !.......................................................................................
+   
+   call AWAE_CalcOutput( 0.0_DbKi, farm%AWAE%u, farm%AWAE%p, farm%AWAE%x, farm%AWAE%xd, farm%AWAE%z, &
+                     farm%AWAE%OtherSt, farm%AWAE%y, farm%AWAE%m, ErrStat2, ErrMsg2 )         
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   if (ErrStat >= AbortErrLev) return
    
    !.......................................................................................
    ! Transfer y_AWAE to u_F and u_WD
    !.......................................................................................
-        
+   
+   call Transfer_AWAE_to_FAST(farm)              
+   call Transfer_AWAE_to_WD(farm)   
+   
    !.......................................................................................
    ! Write Output to File
    !.......................................................................................
@@ -1311,7 +1320,7 @@ end subroutine FARM_UpdateStates
 !!       1. call WD_CO and transfer y_WD to u_AWAE
 !!       2. call SC_CO and transfer y_SC to u_F
 !!       3. Transfer y_F to u_SC and u_WD
-!!    -  CALL AWEA_CO
+!!    -  CALL AWAE_CO
 !!    -  Transfer y_AWAE to u_F and u_WD
 !!    -  Write Output to File
 subroutine FARM_CalcOutput(t, farm, ErrStat, ErrMsg)
@@ -1330,7 +1339,8 @@ subroutine FARM_CalcOutput(t, farm, ErrStat, ErrMsg)
    ErrMsg = ""
    
    !.......................................................................................
-   ! calculate module outputs and perform some input-output solves (steps 1. and 2. and 3. can be done in parallel)
+   ! calculate module outputs and perform some input-output solves (steps 1. and 2. and 3. can be done in parallel,
+   !  but be careful that step 3 doesn't modify the inputs to steps 1 or 2)
    !.......................................................................................
    
       !--------------------
@@ -1343,7 +1353,9 @@ subroutine FARM_CalcOutput(t, farm, ErrStat, ErrMsg)
          call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'T'//trim(num2lstr(i_turb))//':'//RoutineName)
                
    END DO
-   
+   if (ErrStat >= AbortErrLev) return
+
+   call Transfer_WD_to_AWAE(farm)
    
       !--------------------
       ! 2. call SC_CO and transfer y_SC to u_F         
@@ -1355,19 +1367,19 @@ subroutine FARM_CalcOutput(t, farm, ErrStat, ErrMsg)
    call Transfer_FAST_to_WD(farm)
          
    !.......................................................................................
-   ! calculate AWAE outputs and perform rest of input-output solves (2. and 3. can be done in parallel)
+   ! calculate AWAE outputs and perform rest of input-output solves
    !.......................................................................................
    
       !--------------------
-      ! 1. call AWEA_CO 
+      ! 1. call AWAE_CO 
+   call AWAE_CalcOutput( t, farm%AWAE%u, farm%AWAE%p, farm%AWAE%x, farm%AWAE%xd, farm%AWAE%z, &
+                     farm%AWAE%OtherSt, farm%AWAE%y, farm%AWAE%m, ErrStat2, ErrMsg2 )         
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 
       !--------------------
-      ! 2. Transfer y_AWAE to u_F 
-   
-   
-      !--------------------
-      ! 3. Transfer y_AWAE to u_WD 
+      ! 2. Transfer y_AWAE to u_F  and u_WD   
    call Transfer_AWAE_to_FAST(farm)      
+   call Transfer_AWAE_to_WD(farm)   
    
    
    !.......................................................................................
@@ -1467,6 +1479,19 @@ SUBROUTINE Transfer_FAST_to_WD(farm)
    
 END SUBROUTINE Transfer_FAST_to_WD
 !----------------------------------------------------------------------------------------------------------------------------------
+SUBROUTINE Transfer_AWAE_to_WD(farm)
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm                            !< FAST.Farm data  
+
+   integer(intKi)  :: i_turb
+   
+   DO i_turb = 1,farm%p%NumTurbines
+      farm%WD(i_turb)%u%V_plane      = farm%AWAE%y%V_plane(:,:,i_turb)   ! Advection, deflection, and meandering velocity of wake planes, m/s
+      farm%WD(i_turb)%u%Vx_wind_disk = farm%AWAE%y%Vx_wind_disk(i_turb)  ! Rotor-disk-averaged ambient wind speed, normal to planes, m/s
+      farm%WD(i_turb)%u%TI_amb       = farm%AWAE%y%TI_amb(i_turb)        ! Ambient turbulence intensity of wind at rotor disk
+   END DO
+   
+END SUBROUTINE Transfer_AWAE_to_WD
+!----------------------------------------------------------------------------------------------------------------------------------
 SUBROUTINE Transfer_AWAE_to_FAST(farm)
    type(All_FastFarm_Data),  INTENT(INOUT) :: farm                            !< FAST.Farm data  
 
@@ -1478,5 +1503,21 @@ SUBROUTINE Transfer_AWAE_to_FAST(farm)
    END DO
    
 END SUBROUTINE Transfer_AWAE_to_FAST
+!----------------------------------------------------------------------------------------------------------------------------------
+SUBROUTINE Transfer_WD_to_AWAE(farm)
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm                            !< FAST.Farm data  
+
+   integer(intKi)  :: i_turb
+   
+   DO i_turb = 1,farm%p%NumTurbines   
+      farm%AWAE%u%xhat_plane(:,:,i_turb) = farm%WD(i_turb)%y%xhat_plane     ! Orientations of wake planes, normal to wake planes, for each turbine
+      farm%AWAE%u%p_plane(:,:,i_turb)    = farm%WD(i_turb)%y%p_plane        ! Center positions of wake planes for each turbine
+      farm%AWAE%u%Vx_wake(:,:,i_turb)    = farm%WD(i_turb)%y%Vx_wake        ! Axial wake velocity deficit at wake planes, distributed radially, for each turbine
+      farm%AWAE%u%Vr_wake(:,:,i_turb)    = farm%WD(i_turb)%y%Vr_wake        ! Radial wake velocity deficit at wake planes, distributed radially, for each turbine
+      farm%AWAE%u%D_wake(:,i_turb)       = farm%WD(i_turb)%y%D_wake         ! Wake diameters at wake planes for each turbine      
+   END DO
+   
+END SUBROUTINE Transfer_WD_to_AWAE
+!----------------------------------------------------------------------------------------------------------------------------------
 END MODULE FAST_Farm_Subs
 !**********************************************************************************************************************************
