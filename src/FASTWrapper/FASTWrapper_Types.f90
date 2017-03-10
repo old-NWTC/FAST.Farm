@@ -136,7 +136,7 @@ IMPLICIT NONE
   TYPE, PUBLIC :: FWrap_InputType
     REAL(SiKi) , DIMENSION(:), ALLOCATABLE  :: FromSC_Global      !< Global (turbine-independent) commands from the super controller [(various units)]
     REAL(SiKi) , DIMENSION(:), ALLOCATABLE  :: FromSC_Turbine      !< Turbine-dependent commands from the super controller from the super controller [(various units)]
-    REAL(ReKi) , DIMENSION(:,:,:,:,:), ALLOCATABLE  :: V_high_dist      !< UVW components of disturbed wind [nx^high, ny^high, nz^high, n^high/low] (ambient + deficits) across the high-resolution domain around the turbine for each high-resolution time step within a low-resolution time step [(m/s)]
+    REAL(ReKi) , DIMENSION(:,:,:,:,:), ALLOCATABLE  :: Vdist_High      !< UVW components of disturbed wind [nx^high, ny^high, nz^high, n^high/low] (ambient + deficits) across the high-resolution domain around the turbine for each high-resolution time step within a low-resolution time step [(m/s)]
   END TYPE FWrap_InputType
 ! =======================
 ! =========  FWrap_OutputType  =======
@@ -2185,25 +2185,25 @@ IF (ALLOCATED(SrcInputData%FromSC_Turbine)) THEN
   END IF
     DstInputData%FromSC_Turbine = SrcInputData%FromSC_Turbine
 ENDIF
-IF (ALLOCATED(SrcInputData%V_high_dist)) THEN
-  i1_l = LBOUND(SrcInputData%V_high_dist,1)
-  i1_u = UBOUND(SrcInputData%V_high_dist,1)
-  i2_l = LBOUND(SrcInputData%V_high_dist,2)
-  i2_u = UBOUND(SrcInputData%V_high_dist,2)
-  i3_l = LBOUND(SrcInputData%V_high_dist,3)
-  i3_u = UBOUND(SrcInputData%V_high_dist,3)
-  i4_l = LBOUND(SrcInputData%V_high_dist,4)
-  i4_u = UBOUND(SrcInputData%V_high_dist,4)
-  i5_l = LBOUND(SrcInputData%V_high_dist,5)
-  i5_u = UBOUND(SrcInputData%V_high_dist,5)
-  IF (.NOT. ALLOCATED(DstInputData%V_high_dist)) THEN 
-    ALLOCATE(DstInputData%V_high_dist(i1_l:i1_u,i2_l:i2_u,i3_l:i3_u,i4_l:i4_u,i5_l:i5_u),STAT=ErrStat2)
+IF (ALLOCATED(SrcInputData%Vdist_High)) THEN
+  i1_l = LBOUND(SrcInputData%Vdist_High,1)
+  i1_u = UBOUND(SrcInputData%Vdist_High,1)
+  i2_l = LBOUND(SrcInputData%Vdist_High,2)
+  i2_u = UBOUND(SrcInputData%Vdist_High,2)
+  i3_l = LBOUND(SrcInputData%Vdist_High,3)
+  i3_u = UBOUND(SrcInputData%Vdist_High,3)
+  i4_l = LBOUND(SrcInputData%Vdist_High,4)
+  i4_u = UBOUND(SrcInputData%Vdist_High,4)
+  i5_l = LBOUND(SrcInputData%Vdist_High,5)
+  i5_u = UBOUND(SrcInputData%Vdist_High,5)
+  IF (.NOT. ALLOCATED(DstInputData%Vdist_High)) THEN 
+    ALLOCATE(DstInputData%Vdist_High(i1_l:i1_u,i2_l:i2_u,i3_l:i3_u,i4_l:i4_u,i5_l:i5_u),STAT=ErrStat2)
     IF (ErrStat2 /= 0) THEN 
-      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstInputData%V_high_dist.', ErrStat, ErrMsg,RoutineName)
+      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstInputData%Vdist_High.', ErrStat, ErrMsg,RoutineName)
       RETURN
     END IF
   END IF
-    DstInputData%V_high_dist = SrcInputData%V_high_dist
+    DstInputData%Vdist_High = SrcInputData%Vdist_High
 ENDIF
  END SUBROUTINE FWrap_CopyInput
 
@@ -2222,8 +2222,8 @@ ENDIF
 IF (ALLOCATED(InputData%FromSC_Turbine)) THEN
   DEALLOCATE(InputData%FromSC_Turbine)
 ENDIF
-IF (ALLOCATED(InputData%V_high_dist)) THEN
-  DEALLOCATE(InputData%V_high_dist)
+IF (ALLOCATED(InputData%Vdist_High)) THEN
+  DEALLOCATE(InputData%Vdist_High)
 ENDIF
  END SUBROUTINE FWrap_DestroyInput
 
@@ -2272,10 +2272,10 @@ ENDIF
     Int_BufSz   = Int_BufSz   + 2*1  ! FromSC_Turbine upper/lower bounds for each dimension
       Re_BufSz   = Re_BufSz   + SIZE(InData%FromSC_Turbine)  ! FromSC_Turbine
   END IF
-  Int_BufSz   = Int_BufSz   + 1     ! V_high_dist allocated yes/no
-  IF ( ALLOCATED(InData%V_high_dist) ) THEN
-    Int_BufSz   = Int_BufSz   + 2*5  ! V_high_dist upper/lower bounds for each dimension
-      Re_BufSz   = Re_BufSz   + SIZE(InData%V_high_dist)  ! V_high_dist
+  Int_BufSz   = Int_BufSz   + 1     ! Vdist_High allocated yes/no
+  IF ( ALLOCATED(InData%Vdist_High) ) THEN
+    Int_BufSz   = Int_BufSz   + 2*5  ! Vdist_High upper/lower bounds for each dimension
+      Re_BufSz   = Re_BufSz   + SIZE(InData%Vdist_High)  ! Vdist_High
   END IF
   IF ( Re_BufSz  .GT. 0 ) THEN 
      ALLOCATE( ReKiBuf(  Re_BufSz  ), STAT=ErrStat2 )
@@ -2330,30 +2330,30 @@ ENDIF
       IF (SIZE(InData%FromSC_Turbine)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%FromSC_Turbine))-1 ) = PACK(InData%FromSC_Turbine,.TRUE.)
       Re_Xferred   = Re_Xferred   + SIZE(InData%FromSC_Turbine)
   END IF
-  IF ( .NOT. ALLOCATED(InData%V_high_dist) ) THEN
+  IF ( .NOT. ALLOCATED(InData%Vdist_High) ) THEN
     IntKiBuf( Int_Xferred ) = 0
     Int_Xferred = Int_Xferred + 1
   ELSE
     IntKiBuf( Int_Xferred ) = 1
     Int_Xferred = Int_Xferred + 1
-    IntKiBuf( Int_Xferred    ) = LBOUND(InData%V_high_dist,1)
-    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%V_high_dist,1)
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%Vdist_High,1)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%Vdist_High,1)
     Int_Xferred = Int_Xferred + 2
-    IntKiBuf( Int_Xferred    ) = LBOUND(InData%V_high_dist,2)
-    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%V_high_dist,2)
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%Vdist_High,2)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%Vdist_High,2)
     Int_Xferred = Int_Xferred + 2
-    IntKiBuf( Int_Xferred    ) = LBOUND(InData%V_high_dist,3)
-    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%V_high_dist,3)
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%Vdist_High,3)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%Vdist_High,3)
     Int_Xferred = Int_Xferred + 2
-    IntKiBuf( Int_Xferred    ) = LBOUND(InData%V_high_dist,4)
-    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%V_high_dist,4)
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%Vdist_High,4)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%Vdist_High,4)
     Int_Xferred = Int_Xferred + 2
-    IntKiBuf( Int_Xferred    ) = LBOUND(InData%V_high_dist,5)
-    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%V_high_dist,5)
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%Vdist_High,5)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%Vdist_High,5)
     Int_Xferred = Int_Xferred + 2
 
-      IF (SIZE(InData%V_high_dist)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%V_high_dist))-1 ) = PACK(InData%V_high_dist,.TRUE.)
-      Re_Xferred   = Re_Xferred   + SIZE(InData%V_high_dist)
+      IF (SIZE(InData%Vdist_High)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%Vdist_High))-1 ) = PACK(InData%Vdist_High,.TRUE.)
+      Re_Xferred   = Re_Xferred   + SIZE(InData%Vdist_High)
   END IF
  END SUBROUTINE FWrap_PackInput
 
@@ -2440,7 +2440,7 @@ ENDIF
       Re_Xferred   = Re_Xferred   + SIZE(OutData%FromSC_Turbine)
     DEALLOCATE(mask1)
   END IF
-  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! V_high_dist not allocated
+  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! Vdist_High not allocated
     Int_Xferred = Int_Xferred + 1
   ELSE
     Int_Xferred = Int_Xferred + 1
@@ -2459,10 +2459,10 @@ ENDIF
     i5_l = IntKiBuf( Int_Xferred    )
     i5_u = IntKiBuf( Int_Xferred + 1)
     Int_Xferred = Int_Xferred + 2
-    IF (ALLOCATED(OutData%V_high_dist)) DEALLOCATE(OutData%V_high_dist)
-    ALLOCATE(OutData%V_high_dist(i1_l:i1_u,i2_l:i2_u,i3_l:i3_u,i4_l:i4_u,i5_l:i5_u),STAT=ErrStat2)
+    IF (ALLOCATED(OutData%Vdist_High)) DEALLOCATE(OutData%Vdist_High)
+    ALLOCATE(OutData%Vdist_High(i1_l:i1_u,i2_l:i2_u,i3_l:i3_u,i4_l:i4_u,i5_l:i5_u),STAT=ErrStat2)
     IF (ErrStat2 /= 0) THEN 
-       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%V_high_dist.', ErrStat, ErrMsg,RoutineName)
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%Vdist_High.', ErrStat, ErrMsg,RoutineName)
        RETURN
     END IF
     ALLOCATE(mask5(i1_l:i1_u,i2_l:i2_u,i3_l:i3_u,i4_l:i4_u,i5_l:i5_u),STAT=ErrStat2)
@@ -2471,8 +2471,8 @@ ENDIF
        RETURN
     END IF
     mask5 = .TRUE. 
-      IF (SIZE(OutData%V_high_dist)>0) OutData%V_high_dist = UNPACK(ReKiBuf( Re_Xferred:Re_Xferred+(SIZE(OutData%V_high_dist))-1 ), mask5, 0.0_ReKi )
-      Re_Xferred   = Re_Xferred   + SIZE(OutData%V_high_dist)
+      IF (SIZE(OutData%Vdist_High)>0) OutData%Vdist_High = UNPACK(ReKiBuf( Re_Xferred:Re_Xferred+(SIZE(OutData%Vdist_High))-1 ), mask5, 0.0_ReKi )
+      Re_Xferred   = Re_Xferred   + SIZE(OutData%Vdist_High)
     DEALLOCATE(mask5)
   END IF
  END SUBROUTINE FWrap_UnPackInput

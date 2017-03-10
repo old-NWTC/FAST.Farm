@@ -1158,11 +1158,6 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
       !--------------------
       ! 1c. transfer y_AWAE to u_F and u_WD         
    
-   DO i_turb = 1,farm%p%NumTurbines
-   ! allocated in FAST's IfW initialization as 3,x,y,z,t
-      farm%FWrap(i_turb)%u%V_high_dist(1  ,:,:,:,:) = 8.0_ReKi
-      farm%FWrap(i_turb)%u%V_high_dist(2:3,:,:,:,:) = 0.0_ReKi
-   END DO
    
    
    DO i_turb = 1,farm%p%NumTurbines
@@ -1172,6 +1167,7 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
       farm%WD(i_turb)%u%TI_amb         = 0.1_ReKi  ! Ambient turbulence intensity of wind at rotor disk
    END DO
    
+   call Transfer_AWAE_to_FAST(farm)      
    
       !--------------------
       ! 2a. u_SC=0         
@@ -1368,13 +1364,10 @@ subroutine FARM_CalcOutput(t, farm, ErrStat, ErrMsg)
       !--------------------
       ! 2. Transfer y_AWAE to u_F 
    
-   DO i_turb = 1,farm%p%NumTurbines
-      farm%FWrap(i_turb)%u%V_high_dist(1,:,:,:,:) = 8.0_ReKi !+ t/farm%p%tMax
-   END DO
-   
    
       !--------------------
       ! 3. Transfer y_AWAE to u_WD 
+   call Transfer_AWAE_to_FAST(farm)      
    
    
    !.......................................................................................
@@ -1474,5 +1467,16 @@ SUBROUTINE Transfer_FAST_to_WD(farm)
    
 END SUBROUTINE Transfer_FAST_to_WD
 !----------------------------------------------------------------------------------------------------------------------------------
+SUBROUTINE Transfer_AWAE_to_FAST(farm)
+   type(All_FastFarm_Data),  INTENT(INOUT) :: farm                            !< FAST.Farm data  
+
+   integer(intKi)  :: i_turb
+   
+   DO i_turb = 1,farm%p%NumTurbines
+         ! allocated in FAST's IfW initialization as 3,x,y,z,t
+      farm%FWrap(i_turb)%u%Vdist_High = farm%AWAE%y%Vdist_High(:,:,:,:,:,i_turb)
+   END DO
+   
+END SUBROUTINE Transfer_AWAE_to_FAST
 END MODULE FAST_Farm_Subs
 !**********************************************************************************************************************************
