@@ -29,7 +29,7 @@ typedef  ^               ParameterType         CHARACTER(1024) FTitle          -
 typedef  ^               ParameterType         CHARACTER(1024) OutFileRoot     -    - - "The root name derived from the primary FAST.Farm input file" -
 typedef  ^               ParameterType         INTEGER         n_ChkptTime     -    - - "Number of time steps between writing checkpoint files"	-
 typedef  ^               ParameterType         DbKi            TStart          -    - - "Time to begin tabular output" s
-typedef  ^               ParameterType         IntKi           n_TMax_m1       -    - - "Number of the time step of TMax - dt (the end time of the simulation)" -
+typedef  ^               ParameterType         IntKi           n_TMax          -    - - "Number of the time step of TMax (the end time of the simulation)" -
 # parameters for data output to files:
 typedef  ^               ParameterType         LOGICAL         WrBinOutFile    -    - - "Write a binary output file? (.outb)" -
 typedef  ^               ParameterType         LOGICAL         WrTxtOutFile    -    - - "Write a text (formatted) output file? (.out)" -

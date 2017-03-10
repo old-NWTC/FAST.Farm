@@ -87,7 +87,7 @@ IMPLICIT NONE
     CHARACTER(1024)  :: OutFileRoot      !< The root name derived from the primary FAST.Farm input file [-]
     INTEGER(IntKi)  :: n_ChkptTime      !< Number of time steps between writing checkpoint files [-]
     REAL(DbKi)  :: TStart      !< Time to begin tabular output [s]
-    INTEGER(IntKi)  :: n_TMax_m1      !< Number of the time step of TMax - dt (the end time of the simulation) [-]
+    INTEGER(IntKi)  :: n_TMax      !< Number of the time step of TMax (the end time of the simulation) [-]
     LOGICAL  :: WrBinOutFile      !< Write a binary output file? (.outb) [-]
     LOGICAL  :: WrTxtOutFile      !< Write a text (formatted) output file? (.out) [-]
     CHARACTER(1)  :: Delim      !< Delimiter between columns of text output file (.out): space or tab [-]
@@ -210,7 +210,7 @@ ENDIF
     DstParamData%OutFileRoot = SrcParamData%OutFileRoot
     DstParamData%n_ChkptTime = SrcParamData%n_ChkptTime
     DstParamData%TStart = SrcParamData%TStart
-    DstParamData%n_TMax_m1 = SrcParamData%n_TMax_m1
+    DstParamData%n_TMax = SrcParamData%n_TMax
     DstParamData%WrBinOutFile = SrcParamData%WrBinOutFile
     DstParamData%WrTxtOutFile = SrcParamData%WrTxtOutFile
     DstParamData%Delim = SrcParamData%Delim
@@ -403,7 +403,7 @@ ENDIF
       Int_BufSz  = Int_BufSz  + 1*LEN(InData%OutFileRoot)  ! OutFileRoot
       Int_BufSz  = Int_BufSz  + 1  ! n_ChkptTime
       Db_BufSz   = Db_BufSz   + 1  ! TStart
-      Int_BufSz  = Int_BufSz  + 1  ! n_TMax_m1
+      Int_BufSz  = Int_BufSz  + 1  ! n_TMax
       Int_BufSz  = Int_BufSz  + 1  ! WrBinOutFile
       Int_BufSz  = Int_BufSz  + 1  ! WrTxtOutFile
       Int_BufSz  = Int_BufSz  + 1*LEN(InData%Delim)  ! Delim
@@ -538,7 +538,7 @@ ENDIF
       Int_Xferred   = Int_Xferred   + 1
       DbKiBuf ( Db_Xferred:Db_Xferred+(1)-1 ) = InData%TStart
       Db_Xferred   = Db_Xferred   + 1
-      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%n_TMax_m1
+      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%n_TMax
       Int_Xferred   = Int_Xferred   + 1
       IntKiBuf ( Int_Xferred:Int_Xferred+1-1 ) = TRANSFER( InData%WrBinOutFile , IntKiBuf(1), 1)
       Int_Xferred   = Int_Xferred   + 1
@@ -778,7 +778,7 @@ ENDIF
       Int_Xferred   = Int_Xferred + 1
       OutData%TStart = DbKiBuf( Db_Xferred ) 
       Db_Xferred   = Db_Xferred + 1
-      OutData%n_TMax_m1 = IntKiBuf( Int_Xferred ) 
+      OutData%n_TMax = IntKiBuf( Int_Xferred ) 
       Int_Xferred   = Int_Xferred + 1
       OutData%WrBinOutFile = TRANSFER( IntKiBuf( Int_Xferred ), mask0 )
       Int_Xferred   = Int_Xferred + 1

@@ -125,10 +125,12 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
       
    farm%p%TChanLen = max( 10, int(log10(farm%p%TMax))+7 )
    farm%p%OutFmt_t = 'F'//trim(num2lstr( farm%p%TChanLen ))//'.4' ! 'F10.4'    
-   farm%p%n_TMax_m1  = FLOOR( ( farm%p%TMax / farm%p%DT ) )  ! We're going to go from step 0 to n_TMax (thus the -1 here) [note that FAST uses the ceiling function, so it might think we're doing one more step than FAST.Farm]
+   farm%p%n_TMax  = FLOOR( ( farm%p%TMax / farm%p%DT ) ) + 1  ! We're going to go from step 0 to n_TMax 
+                   ! [note that FAST uses the ceiling function, so it might think we're doing one more step than FAST.Farm; 
+                   ! This difference will be a problem only if FAST thinks it's doing FEWER timesteps than FAST.Farm does.]
    
-   IF ( WD_InitInput%InputFileData%NumPlanes > farm%p%n_TMax_m1+1 ) THEN
-      WD_InitInput%InputFileData%NumPlanes = max( 2, min( WD_InitInput%InputFileData%NumPlanes, farm%p%n_TMax_m1+1 ) )
+   IF ( WD_InitInput%InputFileData%NumPlanes > farm%p%n_TMax ) THEN
+      WD_InitInput%InputFileData%NumPlanes = max( 2, min( WD_InitInput%InputFileData%NumPlanes, farm%p%n_TMax ) )
       call SetErrStat(ErrID_Warn, "For efficiency, NumPlanes has been reduced to the number of time steps ("//TRIM(Num2LStr(WD_InitInput%InputFileData%NumPlanes))//").", ErrStat, ErrMsg, RoutineName )
    ENDIF
    
@@ -146,7 +148,7 @@ SUBROUTINE Farm_Initialize( farm, InputFile, ErrStat, ErrMsg )
    AWAE_InitInput%InputFileData%NumPlanes    = WD_InitInput%InputFileData%NumPlanes
    AWAE_InitInput%InputFileData%WindFilePath = farm%p%WindFilePath
    AWAE_InitInput%n_high_low                 = farm%p%n_high_low
-   AWAE_InitInput%NumDT                      = farm%p%n_TMax_m1 + 1
+   AWAE_InitInput%NumDT                      = farm%p%n_TMax
    
    call AWAE_Init( AWAE_InitInput, farm%AWAE%u, farm%AWAE%p, farm%AWAE%x, farm%AWAE%xd, farm%AWAE%z, farm%AWAE%OtherSt, farm%AWAE%y, &
                    farm%AWAE%m, farm%p%DT, AWAE_InitOutput, ErrStat2, ErrMsg2 )

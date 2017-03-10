@@ -97,7 +97,7 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
    ! Time Increment:
    !...............................................................................................................................         
    
-   DO n_t_global = Restart_step, farm%p%n_TMax_m1 
+   DO n_t_global = Restart_step, farm%p%n_TMax - 1
 
    !   ! write checkpoint file if requested
    !   IF (mod(n_t_global, Turbine(1)%p_FAST%n_ChkptTime) == 0 .AND. Restart_step /= n_t_global) then
