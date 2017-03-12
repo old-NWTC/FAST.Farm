@@ -44,12 +44,17 @@ CHARACTER(1024)                       :: CheckpointRoot                         
 CHARACTER(20)                         :: FlagArg                                 ! flag argument from command line
 INTEGER(IntKi)                        :: Restart_step                            ! step to start on (for restart) 
 
+   ! data for SimStatus/RunTimes:
+REAL(DbKi)                            :: PrevSimTime        !< Previous time message was written to screen (s > 0)
+REAL(ReKi)                            :: PrevClockTime      !< Previous clock time in seconds past midnight
+INTEGER                               :: SimStrtTime (8)    !< An array containing the elements of the start time (after initialization).
+INTEGER                               :: ProgStrtTime (8)   !< An array containing the elements of the program start time (before initialization).
+REAL(ReKi)                            :: SimStrtCPU         !< User CPU time for simulation (without intialization)
+REAL(ReKi)                            :: ProgStrtCPU        !< User CPU time for program (with intialization)
+
 ! these should probably go in the FAST.Farm registry:
 type(All_FastFarm_Data)               :: farm  
  
-type(FWrap_InitInputType)             :: FWrap_InitInp
-type(FWrap_InitOutputType)            :: FWrap_InitOut
-
 !FAST.Farm Driver
 !     Initialization
 !     Initial Calculate Output
@@ -62,7 +67,11 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
       ! Init NWTC_Library, display copyright and version information:
    CALL FAST_ProgStart( Farm_Ver )
 
+   CALL DATE_AND_TIME ( Values=ProgStrtTime )                        ! Let's time the whole simulation
+   CALL CPU_TIME ( ProgStrtCPU )                                    ! Initial time (this zeros the start time when used as a MATLAB function)
+   
    farm%p%NumTurbines = 0
+   t = 0
    
    InputFileName = "" ! make sure we don't think this is a "default" inputFileName if not specified on command line
    CALL CheckArgs( InputFileName, ErrStat, Flag=FlagArg )  ! if ErrStat /= ErrID_None, we'll ignore and deal with the problem when we try to read the input file
@@ -85,6 +94,8 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
       !...............................................................................................................................
       ! Initial Calculate Output
       !............................................................................................................................... 
+         
+      CALL SimStatus_FirstTime( PrevSimTime, PrevClockTime, SimStrtTime, SimStrtCPU, t, farm%p%TMax )
          
       call FARM_InitialCO(farm, ErrStat, ErrMsg)   
          CALL CheckError( ErrStat, ErrMsg, 'during initial calculate output' )
@@ -121,6 +132,8 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
       CALL FARM_CalcOutput(t, farm, ErrStat, ErrMsg)      
          CALL CheckError( ErrStat, ErrMsg  )
       
+      CALL SimStatus( PrevSimTime, PrevClockTime, t, farm%p%TMax )
+         
    END DO ! n_t_global
    
    
@@ -130,7 +143,7 @@ type(FWrap_InitOutputType)            :: FWrap_InitOut
    
    call FARM_End(farm, ErrStat, ErrMsg)
    
-   call Cleanup()
+   CALL RunTimes( ProgStrtTime, ProgStrtCPU, SimStrtTime, SimStrtCPU, t )   
    call NormStop()
    
 CONTAINS
@@ -162,7 +175,6 @@ CONTAINS
             END IF
             
             call FARM_End(farm, ErrStat2, ErrMsg2)                                 
-            call Cleanup()
             call ProgAbort('', TrapErrors=.FALSE., TimeWait=3._ReKi )
             
          END IF
@@ -171,10 +183,5 @@ CONTAINS
 
 
    END SUBROUTINE CheckError   
-   !............................................................................................................................... 
-   SUBROUTINE Cleanup()
-   
-      
-   END SUBROUTINE Cleanup
 END PROGRAM FAST_Farm
 !**********************************************************************************************************************************
