@@ -96,15 +96,17 @@ IMPLICIT NONE
     INTEGER(IntKi)  :: FmtWidth      !< width of the time OutFmt specifier [-]
     INTEGER(IntKi)  :: TChanLen      !< width of the time channel [-]
     LOGICAL  :: WrDisWind      !< Write disturbed wind data to <WindFilePath>/Low/Dis.t<n>.vtk etc.? [-]
-    INTEGER(IntKi)  :: NOutDisWindXY      !< Number of XY planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXY.<n_out>.t<n>.vtk [0 to 99] [-]
+    INTEGER(IntKi)  :: NOutDisWindXY      !< Number of XY planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXY.<n_out>.t<n>.vtk [0 to 9] [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutDisWindZ      !< Z coordinates of XY planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXY] [meters]
-    INTEGER(IntKi)  :: NOutDisWindYZ      !< Number of YZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisYZ.<n_out>.t<n>.vtk [0 to 99] [-]
+    INTEGER(IntKi)  :: NOutDisWindYZ      !< Number of YZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisYZ.<n_out>.t<n>.vtk [0 to 9] [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutDisWindX      !< X coordinates of YZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindYZ] [meters]
-    INTEGER(IntKi)  :: NOutDisWindXZ      !< Number of XZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXZ.<n_out>.t<n>.vtk [0 to 99] [-]
+    INTEGER(IntKi)  :: NOutDisWindXZ      !< Number of XZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXZ.<n_out>.t<n>.vtk [0 to 9] [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutDisWindY      !< Y coordinates of XZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXZ] [meters]
-    INTEGER(IntKi)  :: NOutDist      !< Number of downstream distances for wake output for an individual rotor [0 to 99] [-]
+    INTEGER(IntKi)  :: NOutRadii      !< Number of radial nodes for wake output for an individual rotor [0 to 20] [-]
+    INTEGER(IntKi) , DIMENSION(:), ALLOCATABLE  :: OutRadii      !< List of radial nodes for wake output for an individual rotor [1 to NOutRadii] [-]
+    INTEGER(IntKi)  :: NOutDist      !< Number of downstream distances for wake output for an individual rotor [0 to 9] [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutDist      !< List of downstream distances for wake output for an individual rotor [1 to NOutDist] [meters]
-    INTEGER(IntKi)  :: NWindVel      !< Number of points for wind output [0 to 99] [-]
+    INTEGER(IntKi)  :: NWindVel      !< Number of points for wind output [0 to 9] [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: WindVelX      !< List of coordinates in the X direction for wind output [1 to NWindVel] [meters]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: WindVelY      !< List of coordinates in the Y direction for wind output [1 to NWindVel] [meters]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: WindVelZ      !< List of coordinates in the Z direction for wind output [1 to NWindVel] [meters]
@@ -258,6 +260,19 @@ IF (ALLOCATED(SrcParamData%OutDisWindY)) THEN
   END IF
     DstParamData%OutDisWindY = SrcParamData%OutDisWindY
 ENDIF
+    DstParamData%NOutRadii = SrcParamData%NOutRadii
+IF (ALLOCATED(SrcParamData%OutRadii)) THEN
+  i1_l = LBOUND(SrcParamData%OutRadii,1)
+  i1_u = UBOUND(SrcParamData%OutRadii,1)
+  IF (.NOT. ALLOCATED(DstParamData%OutRadii)) THEN 
+    ALLOCATE(DstParamData%OutRadii(i1_l:i1_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstParamData%OutRadii.', ErrStat, ErrMsg,RoutineName)
+      RETURN
+    END IF
+  END IF
+    DstParamData%OutRadii = SrcParamData%OutRadii
+ENDIF
     DstParamData%NOutDist = SrcParamData%NOutDist
 IF (ALLOCATED(SrcParamData%OutDist)) THEN
   i1_l = LBOUND(SrcParamData%OutDist,1)
@@ -333,6 +348,9 @@ IF (ALLOCATED(ParamData%OutDisWindX)) THEN
 ENDIF
 IF (ALLOCATED(ParamData%OutDisWindY)) THEN
   DEALLOCATE(ParamData%OutDisWindY)
+ENDIF
+IF (ALLOCATED(ParamData%OutRadii)) THEN
+  DEALLOCATE(ParamData%OutRadii)
 ENDIF
 IF (ALLOCATED(ParamData%OutDist)) THEN
   DEALLOCATE(ParamData%OutDist)
@@ -429,6 +447,12 @@ ENDIF
   IF ( ALLOCATED(InData%OutDisWindY) ) THEN
     Int_BufSz   = Int_BufSz   + 2*1  ! OutDisWindY upper/lower bounds for each dimension
       Re_BufSz   = Re_BufSz   + SIZE(InData%OutDisWindY)  ! OutDisWindY
+  END IF
+      Int_BufSz  = Int_BufSz  + 1  ! NOutRadii
+  Int_BufSz   = Int_BufSz   + 1     ! OutRadii allocated yes/no
+  IF ( ALLOCATED(InData%OutRadii) ) THEN
+    Int_BufSz   = Int_BufSz   + 2*1  ! OutRadii upper/lower bounds for each dimension
+      Int_BufSz  = Int_BufSz  + SIZE(InData%OutRadii)  ! OutRadii
   END IF
       Int_BufSz  = Int_BufSz  + 1  ! NOutDist
   Int_BufSz   = Int_BufSz   + 1     ! OutDist allocated yes/no
@@ -606,6 +630,21 @@ ENDIF
 
       IF (SIZE(InData%OutDisWindY)>0) ReKiBuf ( Re_Xferred:Re_Xferred+(SIZE(InData%OutDisWindY))-1 ) = PACK(InData%OutDisWindY,.TRUE.)
       Re_Xferred   = Re_Xferred   + SIZE(InData%OutDisWindY)
+  END IF
+      IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%NOutRadii
+      Int_Xferred   = Int_Xferred   + 1
+  IF ( .NOT. ALLOCATED(InData%OutRadii) ) THEN
+    IntKiBuf( Int_Xferred ) = 0
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    IntKiBuf( Int_Xferred ) = 1
+    Int_Xferred = Int_Xferred + 1
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%OutRadii,1)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%OutRadii,1)
+    Int_Xferred = Int_Xferred + 2
+
+      IF (SIZE(InData%OutRadii)>0) IntKiBuf ( Int_Xferred:Int_Xferred+(SIZE(InData%OutRadii))-1 ) = PACK(InData%OutRadii,.TRUE.)
+      Int_Xferred   = Int_Xferred   + SIZE(InData%OutRadii)
   END IF
       IntKiBuf ( Int_Xferred:Int_Xferred+(1)-1 ) = InData%NOutDist
       Int_Xferred   = Int_Xferred   + 1
@@ -875,6 +914,31 @@ ENDIF
     mask1 = .TRUE. 
       IF (SIZE(OutData%OutDisWindY)>0) OutData%OutDisWindY = UNPACK(ReKiBuf( Re_Xferred:Re_Xferred+(SIZE(OutData%OutDisWindY))-1 ), mask1, 0.0_ReKi )
       Re_Xferred   = Re_Xferred   + SIZE(OutData%OutDisWindY)
+    DEALLOCATE(mask1)
+  END IF
+      OutData%NOutRadii = IntKiBuf( Int_Xferred ) 
+      Int_Xferred   = Int_Xferred + 1
+  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! OutRadii not allocated
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    Int_Xferred = Int_Xferred + 1
+    i1_l = IntKiBuf( Int_Xferred    )
+    i1_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    IF (ALLOCATED(OutData%OutRadii)) DEALLOCATE(OutData%OutRadii)
+    ALLOCATE(OutData%OutRadii(i1_l:i1_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%OutRadii.', ErrStat, ErrMsg,RoutineName)
+       RETURN
+    END IF
+    ALLOCATE(mask1(i1_l:i1_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating mask1.', ErrStat, ErrMsg,RoutineName)
+       RETURN
+    END IF
+    mask1 = .TRUE. 
+      IF (SIZE(OutData%OutRadii)>0) OutData%OutRadii = UNPACK( IntKiBuf ( Int_Xferred:Int_Xferred+(SIZE(OutData%OutRadii))-1 ), mask1, 0_IntKi )
+      Int_Xferred   = Int_Xferred   + SIZE(OutData%OutRadii)
     DEALLOCATE(mask1)
   END IF
       OutData%NOutDist = IntKiBuf( Int_Xferred ) 

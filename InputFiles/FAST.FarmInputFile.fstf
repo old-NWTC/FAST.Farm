@@ -3,20 +3,20 @@ Sample FAST.Farm input file
 --- SIMULATION CONTROL ---
 False              Echo               Echo input data to <RootName>.ech? (flag)
 FATAL              AbortLevel         Error level when simulation should abort (string) {"WARNING", "SEVERE", "FATAL"}
-600.0              TMax               Total run time (s) [>=0.0]
+2000.0             TMax               Total run time (s) [>=0.0]
 --- AMBIENT WIND ---
 2.0                DT                 Time step for low -resolution wind data input files; will be used as the global FAST.Farm time step (s) [>0.0]
 0.3333333          DT_High            Time step for high-resolution wind data input files (s) [>0.0]
 "ABLSolver"        WindFilePath       Path name to wind data files from precursor (string)
 --- WIND TURBINES ---
 1                  NumTurbines        Number of wind turbines (-) [>=1]
-WT_X  WT_Y  WT_Z  WT_FASTInFile
-(m)   (m)   (m)   (string)
-0.0   0.0   0.0   "..\subs\FAST\CertTest\Test18.fst"
+WT_X   WT_Y   WT_Z   WT_FASTInFile
+(m)    (m)    (m)    (string)
+605.0  1500.0 0.0    "Test18.fst"
 --- WAKE DYNAMICS ---
 5.0                dr                 Radial increment of radial finite-difference grid (m) [>0.0]
 40                 NumRadii           Number of radii in the radial finite-difference grid (-) [>=2]
-300                NumPlanes          Number of wake planes (-) [>=2]
+200                NumPlanes          Number of wake planes (-) [>=2]
 DEFAULT            f_c                Cut-off (corner) frequency of the low-pass time-filter for the wake advection, deflection, and meandering model (Hz) [>0.0] or DEFAULT [DEFAULT=1/300]
 DEFAULT            C_HWkDfl_O         Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor                                               (m    ) or DEFAULT [DEFAULT=-2.9    ]
 DEFAULT            C_HWkDfl_OY        Calibrated parameter in the correction for wake deflection defining the horizontal offset at the rotor scaled with                         yaw error (m/deg) or DEFAULT [DEFAULT=-0.24   ]
@@ -37,23 +37,25 @@ DEFAULT            Mod_WakeDiam       Wake diameter calculation model (-) (switc
 DEFAULT            C_WakeDiam         Calibrated parameter for wake diameter calculation (-) [>0.0 and <1.0] or DEFAULT [DEFAULT=0.95] [unused for Mod_WakeDiam=1]
 --- VISUALIZATION ---
 False              WrDisWind          Write disturbed wind data to <WindFilePath>/Low/Dis.t<n>.vtk etc.? (flag)
-1                  NOutDisWindXY      Number of XY planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXY.<n_out>.t<n>.vtk (-) [0 to 99]
+1                  NOutDisWindXY      Number of XY planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXY.<n_out>.t<n>.vtk (-) [0 to 9]
 90.0               OutDisWindZ        Z coordinates of XY planes for output of disturbed wind data across the low-resolution domain (m) [1 to NOutDisWindXY] [unused for NOutDisWindXY=0]
-11                 NOutDisWindYZ      Number of YZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisYZ.<n_out>.t<n>.vtk (-) [0 to 99]
-0.0, 126.0, 252.0, 378.0, 504.0, 630.0, 756.0, 882.0, 1008.0, 1134.0, 1260.0   OutDisWindX        X coordinates of YZ planes for output of disturbed wind data across the low-resolution domain (m) [1 to NOutDisWindYZ] [unused for NOutDisWindYZ=0]
-1                  NOutDisWindXZ      Number of XZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXZ.<n_out>.t<n>.vtk (-) [0 to 99]
-0.0                OutDisWindY        Y coordinates of XZ planes for output of disturbed wind data across the low-resolution domain (m) [1 to NOutDisWindXZ] [unused for NOutDisWindXZ=0]
+9                  NOutDisWindYZ      Number of YZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisYZ.<n_out>.t<n>.vtk (-) [0 to 9]
+600.0, 978.0, 1104.0, 1230.0, 1356.0, 1482.0, 1608.0, 1734.0, 1860.0   OutDisWindX        X coordinates of YZ planes for output of disturbed wind data across the low-resolution domain (m) [1 to NOutDisWindYZ] [unused for NOutDisWindYZ=0]
+1                  NOutDisWindXZ      Number of XZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXZ.<n_out>.t<n>.vtk (-) [0 to 9]
+1500.0             OutDisWindY        Y coordinates of XZ planes for output of disturbed wind data across the low-resolution domain (m) [1 to NOutDisWindXZ] [unused for NOutDisWindXZ=0]
 --- OUTPUT ---
 99999.9            ChkptTime          Amount of time between creating checkpoint files for potential restart (s) [>0.0]
-0                  TStart             Time to begin tabular output (s) [>=0.0]
+200.0              TStart             Time to begin tabular output (s) [>=0.0]
 1                  OutFileFmt         Format for tabular (time-marching) output file (switch) {1: text file [<RootName>.out], 2: binary file [<RootName>.outb], 3: both}
 False              TabDelim           Use tab delimiters in text tabular output file? (flag) {uses spaces if False}
 "ES10.3E2"         OutFmt             Format used for text tabular output, excluding the time channel.  Resulting field should be 10 characters. (quoted string)
-11                 NOutDist           Number of downstream distances for wake output for an individual rotor (-) [0 to 99]
-0.0, 126.0, 252.0, 378.0, 504.0, 630.0, 756.0, 882.0, 1008.0, 1134.0, 1260.0   OutDist            List of downstream distances for wake output for an individual rotor (m) [1 to NOutDist] [unused for NOutDist=0]
-1                  NWindVel           Number of points for wind output (-) [0 to 99]
-0.0                WindVelX           List of coordinates in the X direction for wind output (m) [1 to NWindVel] [unused for NWindVel=0]
-0.0                WindVelY           List of coordinates in the Y direction for wind output (m) [1 to NWindVel] [unused for NWindVel=0]
+20                 NOutRadii          Number of radial nodes         for wake output for an individual rotor (-) [0 to 20]
+0, 1, 2, 3, 4, 5, 7, 9, 11, 13, 15, 16, 17, 18, 19, 21, 24, 28, 33, 39  OutRadii           List of radial nodes         for wake output for an individual rotor (-) [1 to NOutRadii] [unused for NOutRadii=0]
+9                  NOutDist           Number of downstream distances for wake output for an individual rotor (-) [0 to 9 ]
+0.0, 378.0, 504.0, 630.0, 756.0, 882.0, 1008.0, 1134.0, 1260.0          OutDist            List of downstream distances for wake output for an individual rotor (m) [1 to NOutDist ] [unused for NOutDist =0]
+1                  NWindVel           Number of points for wind output (-) [0 to 9]
+600.0              WindVelX           List of coordinates in the X direction for wind output (m) [1 to NWindVel] [unused for NWindVel=0]
+1500.0             WindVelY           List of coordinates in the Y direction for wind output (m) [1 to NWindVel] [unused for NWindVel=0]
 90.0               WindVelZ           List of coordinates in the Z direction for wind output (m) [1 to NWindVel] [unused for NWindVel=0]
                    OutList            The next line(s) contains a list of output parameters.  See OutListParameters.xlsx for a listing of available output channels (quoted string)
 END of input file (the word "END" must appear in the first 3 columns of this last OutList line)

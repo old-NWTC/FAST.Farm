@@ -37,7 +37,7 @@ MODULE FAST_Farm_Subs
 
 
    TYPE(ProgDesc), PARAMETER  :: Farm_Ver = ProgDesc( 'FAST.Farm', 'v1.00.00', '4-Feb-2017' ) !< module date/version information   
-   integer, parameter :: maxOutputPoints = 99
+   integer, parameter :: maxOutputPoints = 9
    
    CONTAINS
 
@@ -671,8 +671,8 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, WD_InitInp, ErrStat, ErrMsg )
    CALL ReadVar( UnIn, InputFile, p%WrDisWind, "WrDisWind", "Write disturbed wind data to <WindFilePath>/Low/Dis.t<n>.vtk etc.? (flag)", ErrStat2, ErrMsg2, UnEc)
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       
-      ! NOutDisWindXY - Number of XY planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXY.<n_out>.t<n>.vtk (-) [0 to 99]:
-   CALL ReadVar( UnIn, InputFile, p%NOutDisWindXY, "NOutDisWindXY", "Number of XY planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXY.<n_out>.t<n>.vtk (-) [0 to 99]", ErrStat2, ErrMsg2, UnEc)
+      ! NOutDisWindXY - Number of XY planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXY.<n_out>.t<n>.vtk (-) [0 to 9]:
+   CALL ReadVar( UnIn, InputFile, p%NOutDisWindXY, "NOutDisWindXY", "Number of XY planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXY.<n_out>.t<n>.vtk (-) [0 to 9]", ErrStat2, ErrMsg2, UnEc)
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       if ( ErrStat >= AbortErrLev ) then
          call cleanup()
@@ -694,8 +694,8 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, WD_InitInp, ErrStat, ErrMsg )
          RETURN        
       end if
       
-      ! NOutDisWindYZ - Number of YZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisYZ.<n_out>.t<n>.vtk (-) [0 to 99]:
-   CALL ReadVar( UnIn, InputFile, p%NOutDisWindYZ, "NOutDisWindYZ", "Number of YZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisYZ.<n_out>.t<n>.vtk (-) [0 to 99]", ErrStat2, ErrMsg2, UnEc)
+      ! NOutDisWindYZ - Number of YZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisYZ.<n_out>.t<n>.vtk (-) [0 to 9]:
+   CALL ReadVar( UnIn, InputFile, p%NOutDisWindYZ, "NOutDisWindYZ", "Number of YZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisYZ.<n_out>.t<n>.vtk (-) [0 to 9]", ErrStat2, ErrMsg2, UnEc)
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       if ( ErrStat >= AbortErrLev ) then
          call cleanup()
@@ -717,8 +717,8 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, WD_InitInp, ErrStat, ErrMsg )
          RETURN        
       end if      
       
-      ! NOutDisWindXZ - Number of XZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXZ.<n_out>.t<n>.vtk (-) [0 to 99]:
-   CALL ReadVar( UnIn, InputFile, p%NOutDisWindXZ, "NOutDisWindXZ", "Number of XZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXZ.<n_out>.t<n>.vtk (-) [0 to 99]", ErrStat2, ErrMsg2, UnEc)
+      ! NOutDisWindXZ - Number of XZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXZ.<n_out>.t<n>.vtk (-) [0 to 9]:
+   CALL ReadVar( UnIn, InputFile, p%NOutDisWindXZ, "NOutDisWindXZ", "Number of XZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXZ.<n_out>.t<n>.vtk (-) [0 to 9]", ErrStat2, ErrMsg2, UnEc)
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       if ( ErrStat >= AbortErrLev ) then
          call cleanup()
@@ -820,9 +820,32 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, WD_InitInp, ErrStat, ErrMsg )
          call cleanup()
          RETURN        
       end if
-
-      ! NOutDist - Number of downstream distances for wake output for an individual rotor (-) [0 to 99]:
-   CALL ReadVar( UnIn, InputFile, p%NOutDist, "NOutDist", "Number of downstream distances for wake output for an individual rotor (-) [0 to 99]", ErrStat2, ErrMsg2, UnEc)
+      
+      ! NOutRadii - Number of radial nodes for wake output for an individual rotor (-) [0 to 20]:
+   CALL ReadVar( UnIn, InputFile, p%NOutRadii, "NOutRadii", "Number of radial nodes for wake output for an individual rotor (-) [0 to 20]", ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if
+      
+      call allocary( p%OutRadii, p%NOutRadii, "OutRadii", ErrStat2, ErrMsg2 )
+         CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+         if ( ErrStat >= AbortErrLev ) then
+            call cleanup()
+            RETURN        
+         end if
+      
+      ! OutRadii - List of radial nodes for wake output for an individual rotor (-) [1 to NOutRadii]:
+   CALL ReadAry( UnIn, InputFile, p%OutRadii, p%NOutRadii, "OutRadii", "List of radial nodes for wake output for an individual rotor (-) [1 to NOutRadii]", ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)      
+      if ( ErrStat >= AbortErrLev ) then
+         call cleanup()
+         RETURN        
+      end if      
+      
+      ! NOutDist - Number of downstream distances for wake output for an individual rotor (-) [0 to 9]:
+   CALL ReadVar( UnIn, InputFile, p%NOutDist, "NOutDist", "Number of downstream distances for wake output for an individual rotor (-) [0 to 9]", ErrStat2, ErrMsg2, UnEc)
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       if ( ErrStat >= AbortErrLev ) then
          call cleanup()
@@ -844,8 +867,8 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, WD_InitInp, ErrStat, ErrMsg )
          RETURN        
       end if      
             
-      ! NWindVel - Number of points for wind output (-) [0 to 99]:
-   CALL ReadVar( UnIn, InputFile, p%NWindVel, "NWindVel", "Number of points for wind output (-) [0 to 99]", ErrStat2, ErrMsg2, UnEc)
+      ! NWindVel - Number of points for wind output (-) [0 to 9]:
+   CALL ReadVar( UnIn, InputFile, p%NWindVel, "NWindVel", "Number of points for wind output (-) [0 to 9]", ErrStat2, ErrMsg2, UnEc)
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       if ( ErrStat >= AbortErrLev ) then
          call cleanup()
@@ -909,6 +932,7 @@ SUBROUTINE Farm_ValidateInput( p, WD_InitInp, ErrStat, ErrMsg )
    CHARACTER(*),             INTENT(  OUT) :: ErrMsg                          !< Error message
 
       ! Local variables:
+   INTEGER(IntKi)                :: i  
    INTEGER(IntKi)                :: ErrStat2                                  ! Temporary Error status
    CHARACTER(ErrMsgLen)          :: ErrMsg2                                   ! Temporary Error message
    CHARACTER(*),   PARAMETER     :: RoutineName = 'Farm_ValidateInput'
@@ -955,11 +979,22 @@ SUBROUTINE Farm_ValidateInput( p, WD_InitInp, ErrStat, ErrMsg )
    IF (p%TStart < 0.0_ReKi) CALL SetErrStat(ErrID_Fatal,'TStart must not be negative.',ErrStat,ErrMsg,RoutineName)
    IF (.not. p%WrBinOutFile .and. .not. p%WrTxtOutFile) CALL SetErrStat( ErrID_Fatal, "FAST.Farm's OutFileFmt must be 1, 2, or 3.",ErrStat,ErrMsg,RoutineName)
 
-   if (p%NOutDisWindXY < 0 .or. p%NOutDisWindXY > maxOutputPoints ) CALL SetErrStat( ErrID_Fatal, 'NOutDisWindXY must be in the range [0, 99].', ErrStat, ErrMsg, RoutineName )
-   if (p%NOutDisWindYZ < 0 .or. p%NOutDisWindYZ > maxOutputPoints ) CALL SetErrStat( ErrID_Fatal, 'NOutDisWindYZ must be in the range [0, 99].', ErrStat, ErrMsg, RoutineName )
-   if (p%NOutDisWindXZ < 0 .or. p%NOutDisWindXZ > maxOutputPoints ) CALL SetErrStat( ErrID_Fatal, 'NOutDisWindXZ must be in the range [0, 99].', ErrStat, ErrMsg, RoutineName )
-   if (p%NOutDist < 0 .or. p%NOutDist > maxOutputPoints ) CALL SetErrStat( ErrID_Fatal, 'NOutDist must be in the range [0, 99].', ErrStat, ErrMsg, RoutineName )
-   if (p%NWindVel < 0 .or. p%NWindVel > maxOutputPoints ) CALL SetErrStat( ErrID_Fatal, 'NWindVel must be in the range [0, 99].', ErrStat, ErrMsg, RoutineName )
+   if (p%NOutDisWindXY < 0 .or. p%NOutDisWindXY > maxOutputPoints ) CALL SetErrStat( ErrID_Fatal, 'NOutDisWindXY must be in the range [0, 9].', ErrStat, ErrMsg, RoutineName )
+   if (p%NOutDisWindYZ < 0 .or. p%NOutDisWindYZ > maxOutputPoints ) CALL SetErrStat( ErrID_Fatal, 'NOutDisWindYZ must be in the range [0, 9].', ErrStat, ErrMsg, RoutineName )
+   if (p%NOutDisWindXZ < 0 .or. p%NOutDisWindXZ > maxOutputPoints ) CALL SetErrStat( ErrID_Fatal, 'NOutDisWindXZ must be in the range [0, 9].', ErrStat, ErrMsg, RoutineName )
+   if (p%NOutDist < 0 .or. p%NOutDist > maxOutputPoints ) CALL SetErrStat( ErrID_Fatal, 'NOutDist must be in the range [0, 9].', ErrStat, ErrMsg, RoutineName )
+   if (p%NWindVel < 0 .or. p%NWindVel > maxOutputPoints ) CALL SetErrStat( ErrID_Fatal, 'NWindVel must be in the range [0, 9].', ErrStat, ErrMsg, RoutineName )
+   if (p%NOutRadii < 0 .or. p%NOutRadii > 20 ) then
+      CALL SetErrStat( ErrID_Fatal, 'NOutRadii must be in the range [0, 20].', ErrStat, ErrMsg, RoutineName )
+   else
+      do i=1,p%NOutRadii
+         if (p%OutRadii(i) > WD_InitInp%NumRadii - 1 .or. p%OutRadii(i) < 0) then
+            CALL SetErrStat( ErrID_Fatal, 'OutRadii must be in the range [0, NumRadii - 1].', ErrStat, ErrMsg, RoutineName )
+            exit
+         end if
+      end do      
+   end if
+   
    
    
       ! Check that OutFmt is a valid format specifier and will fit over the column headings
@@ -1143,6 +1178,7 @@ subroutine FARM_InitialCO(farm, ErrStat, ErrMsg)
    
    ErrStat = ErrID_None
    ErrMsg = ""
+   
    
    !.......................................................................................
    ! Initial calls to AWAE and SC modules (steps 1. and 2. can be done in parallel)
