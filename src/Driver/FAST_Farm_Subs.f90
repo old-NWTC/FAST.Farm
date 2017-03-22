@@ -1497,7 +1497,7 @@ subroutine Farm_WriteOutput(t, farm, ErrStat, ErrMsg)
          
             ! Azimuthally averaged thrust force coefficient (normal to disk), distributed radially, -
          do ir = 1, farm%p%NOutRadii
-            farm%m%AllOuts(CtTN(ir, i_turb)) = farm%FWrap(i_turb)%y%AzimAvg_Ct(farm%p%OutRadii(ir))
+            farm%m%AllOuts(CtTN(ir, i_turb)) = farm%FWrap(i_turb)%y%AzimAvg_Ct(farm%p%OutRadii(ir)+1)  ! y%AzimAvg_Ct is a 1-based array but the user specifies 0-based node indices, so we need to add 1
          end do
          
          !.......................................................................................

@@ -9551,7 +9551,8 @@ TYPE(ProgDesc), PARAMETER      :: Farm_Ver      = ProgDesc( 'FAST.Farm', 'v1.00.
    INTEGER,  PARAMETER  :: RtVAmbT(9) =  (/RtVAmbT1,RtVAmbT2,RtVAmbT3,RtVAmbT4,RtVAmbT5,RtVAmbT6,RtVAmbT7,RtVAmbT8,RtVAmbT9/)   
    INTEGER,  PARAMETER  :: RTVRelT(9) =   (/RTVRelT1,RTVRelT2,RTVRelT3,RTVRelT4,RTVRelT5,RTVRelT6,RTVRelT7,RTVRelT8,RTVRelT9/)
 
-   INTEGER,  PARAMETER  :: CtTN(9,20) =    (/CtT1N01,CtT1N02,CtT1N03,CtT1N04,CtT1N05,CtT1N06,CtT1N07,CtT1N08,CtT1N09, CtT1N10, &
+   INTEGER,  PARAMETER  :: CtTN(20,9) = RESHAPE(  & 
+                                           (/CtT1N01,CtT1N02,CtT1N03,CtT1N04,CtT1N05,CtT1N06,CtT1N07,CtT1N08,CtT1N09, CtT1N10, &
                                              CtT1N11,CtT1N12,CtT1N13,CtT1N14,CtT1N15,CtT1N16,CtT1N17,CtT1N18,CtT1N19, CtT1N20, &
                                              CtT2N01,CtT2N02,CtT2N03,CtT2N04,CtT2N05,CtT2N06,CtT2N07,CtT2N08,CtT2N09, CtT2N10, &
                                              CtT2N11,CtT2N12,CtT2N13,CtT2N14,CtT2N15,CtT2N16,CtT2N17,CtT2N18,CtT2N19, CtT2N20, &
@@ -9568,7 +9569,7 @@ TYPE(ProgDesc), PARAMETER      :: Farm_Ver      = ProgDesc( 'FAST.Farm', 'v1.00.
                                              CtT8N01,CtT8N02,CtT8N03,CtT8N04,CtT8N05,CtT8N06,CtT8N07,CtT8N08,CtT8N09, CtT8N10, &
                                              CtT8N11,CtT8N12,CtT8N13,CtT8N14,CtT8N15,CtT8N16,CtT8N17,CtT8N18,CtT8N19, CtT8N20, &
                                              CtT9N01,CtT9N02,CtT9N03,CtT9N04,CtT9N05,CtT9N06,CtT9N07,CtT9N08,CtT9N09, CtT9N10, &
-                                             CtT9N11,CtT9N12,CtT9N13,CtT9N14,CtT9N15,CtT9N16,CtT9N17,CtT9N18,CtT9N19, CtT9N20/)
+                                             CtT9N11,CtT9N12,CtT9N13,CtT9N14,CtT9N15,CtT9N16,CtT9N17,CtT9N18,CtT9N19, CtT9N20/),   (/20,9/) ) 
    
    
    
